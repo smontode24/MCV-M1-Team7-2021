@@ -7,11 +7,11 @@ from match_methods import *
 def parse_input_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("ds_path",
-                        help="path to dataset")
+                        help="path to folder with db + query set")
     parser.add_argument("db_path",
-                        help="path to dataset")
+                        help="db folder name")
     parser.add_argument("qs_path",
-                        help="path to dataset")
+                        help="query set folder name")
     parser.add_argument("--output_pkl",
                         help="output of pkl file with results")
     parser.add_argument("--output_mask",
@@ -28,7 +28,7 @@ def match_paintings(args):
     qs_imgs, qs_gts, qs_mask_list = load_query_set(path.join(args.ds_path, args.qs_path))
 
     # Obtain painting region from images
-    masked_regions = bg_mask(db_imgs) # TODO
+    masked_regions = bg_mask(qs_imgs) # TODO
     # Perform painting matching
     assignments = painting_matching(qs_imgs, db_imgs) # TODO
 
