@@ -1,1 +1,0 @@
-Hola em dic Sergi. 
