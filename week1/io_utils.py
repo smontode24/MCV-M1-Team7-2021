@@ -11,17 +11,12 @@ QS_FOLDER = "qsd1_w1"
 
 def load_images(db_path, ext="jpg"):
     """ Load images from path """
-    print("Loading DB images...")
-    t0 = time()
-    
     file_list = glob.glob(os.path.join(db_path, "*."+ext))
     file_list.sort(key= lambda x: int(x.split(".")[-2][-5:]))
     img_list = [cv2.imread(img_p)[...,::-1] for img_p in file_list]
-    
-    print("Done in", time()-t0, " sec")
     return img_list
 
-def load_db(db_path, load_mask_imgs=False):
+def load_db(db_path):
     """ Load DB images """
     img_list = load_images(db_path)
     labels = list(range(len(img_list)))
@@ -36,10 +31,13 @@ def load_annotations(anno_path):
     else:
         return None
 
+def mask_imgs_to_single_channel(img_list):
+    return [(img[:,:,0] != 0).astype(np.uint8) for img in img_list]
+
 def load_query_set(db_path):
     """ Load query set db and annotations """ 
     img_list = load_images(db_path)
-    mask_list = load_images(db_path, "png")
+    mask_list = mask_imgs_to_single_channel(load_images(db_path, "png"))
     labels = load_annotations(os.path.join(db_path, QUERY_SET_ANN_PATH))
     return img_list, labels, mask_list
 

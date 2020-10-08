@@ -1,11 +1,5 @@
 import numpy as np
 
-def mask_metrics(mask_predictions, mask_gts):
-    """ Compute precision, recall and F1 metric. All  """
-    pass
-
-### --------------
-
 """
 MAP metric from https://github.com/benhamner/Metrics/blob/master/Python/ml_metrics/average_precision.py
 """
