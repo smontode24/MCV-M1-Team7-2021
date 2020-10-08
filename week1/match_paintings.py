@@ -3,6 +3,8 @@ from io_utils import *
 from os import path
 from background_mask import *
 from match_methods import *
+from metrics import *
+from evaluation import *
 
 def parse_input_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -26,6 +28,7 @@ def match_paintings(args):
     # Load DB
     db_imgs, db_annotations = load_db(path.join(args.ds_path, args.db_path))
     qs_imgs, qs_gts, qs_mask_list = load_query_set(path.join(args.ds_path, args.qs_path))
+    print(qs_gts)
 
     # Obtain painting region from images
     masked_regions = bg_mask(qs_imgs) # TODO
@@ -34,6 +37,12 @@ def match_paintings(args):
 
     # If query set annotations are available, evaluate 
     # TODO: Implement in evaluation
+    qs_gts = qs_gts.reshape(len(qs_gts), 1)
+    map_at_1 = mapk(qs_gts, assignments, k=1)
+    map_at_5 = mapk(qs_gts, assignments, k=5)
+
+    print("MAP@1:", map_at_1)
+    print("MAP@5:", map_at_5)
 
     # TODO: Save to pkl file if necessary
     if args.output_pkl:
