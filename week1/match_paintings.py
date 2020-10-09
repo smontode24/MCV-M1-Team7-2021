@@ -16,6 +16,8 @@ def parse_input_args():
                         help="db folder name")
     parser.add_argument("qs_path", type=str,
                         help="query set folder name")
+    parser.add_argument("--load_mask", default=1, type=int,
+                        help="apply masking to paintings to remove background (0 no, 1 yes)")
     parser.add_argument("--masking", default=1, type=int,
                         help="apply masking to paintings to remove background (0 no, 1 yes)")
     parser.add_argument("--output_pkl", type=str,
@@ -31,7 +33,7 @@ def parse_input_args():
 def match_paintings(args):
     # Load DB
     db_imgs, db_annotations = load_db(path.join(args.ds_path, args.db_path))
-    qs_imgs, qs_gts, qs_mask_list = load_query_set(path.join(args.ds_path, args.qs_path))
+    qs_imgs, qs_gts, qs_mask_list = load_query_set(path.join(args.ds_path, args.qs_path), bool(args.load_mask))
 
     # Obtain painting region from images
     if args.masking:
@@ -71,3 +73,4 @@ def match_paintings(args):
 if __name__ == "__main__":
     parsed_args = parse_input_args()
     match_paintings(parsed_args)
+

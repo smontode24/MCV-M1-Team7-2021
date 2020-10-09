@@ -13,7 +13,8 @@ def load_images(db_path, ext="jpg"):
     """ Load images from path """
     file_list = glob.glob(os.path.join(db_path, "*."+ext))
     file_list.sort(key= lambda x: int(x.split(".")[-2][-5:]))
-    img_list = [cv2.imread(img_p)[...,::-1] for img_p in file_list]
+    img_list = [cv2.resize(cv2.imread(img_p)[...,::-1], (256, 256)) for img_p in file_list]
+    #img_list = [cv2.imread(img_p)[...,::-1] for img_p in file_list]
     return img_list
 
 def load_db(db_path):
@@ -34,12 +35,15 @@ def load_annotations(anno_path):
 def mask_imgs_to_single_channel(img_list):
     return [(img[:,:,0] != 0).astype(np.uint8) for img in img_list]
 
-def load_query_set(db_path):
+def load_query_set(db_path, load_masks=True):
     """ Load query set db and annotations """ 
     img_list = load_images(db_path)
-    mask_list = mask_imgs_to_single_channel(load_images(db_path, "png"))
+    if load_masks:
+        masks_list = mask_imgs_to_single_channel(load_images(db_path, "png"))
+    else:
+        masks_list = []
     labels = load_annotations(os.path.join(db_path, QUERY_SET_ANN_PATH))
-    return img_list, labels, mask_list
+    return img_list, labels, masks_list
 
 def to_pkl(results, result_path):
     """ Write results to pkl file in result_path """
