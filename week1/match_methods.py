@@ -4,13 +4,14 @@ import cv2
 
 """ TODO: Matching methods:
 - Color histograms
-- ...
+- Color histogram with gradient images
+- FFT? Remove hf, sparkles....
 """
 
 def painting_matching(imgs, db_imgs, splits=30, max_rank=5): 
     """ Obtain from image """
     matching_method = get_method(2)
-    metric = l1_dist
+    metric = get_correlation
 
     db_img_splits = [i*len(db_imgs)//splits for i in range(splits-1)]
     
@@ -60,7 +61,7 @@ def celled_hist(img, cells=[12, 12]):
 def dummy(img):
     return img.reshape(-1)
 
-def celled_2dhist(img, cells=[32, 32]): # opt: 14
+def celled_2dhist(img, cells=[16, 16]): # opt: 14
     """ Divide image in cells and compute the histogram.
     Downsides: bigger descriptor, rotation, illumination (?) """
 
@@ -77,17 +78,19 @@ def celled_2dhist(img, cells=[32, 32]): # opt: 14
 
     for i in range(cells[0]):
         for j in range(cells[1]):
-            cr = img[w_ranges[i]:w_ranges[i+1], h_ranges[i]:h_ranges[i+1], 1].reshape(-1)
-            cb = img[w_ranges[i]:w_ranges[i+1], h_ranges[i]:h_ranges[i+1], 2].reshape(-1)
-            vals = np.histogram2d(cr, cb, bins=(np.arange(42, 226, 20), np.arange(20, 223, 20)))[0]
+            cr = img[w_ranges[i]:w_ranges[i+1], h_ranges[j]:h_ranges[j+1], 1].reshape(-1)
+            cb = img[w_ranges[i]:w_ranges[i+1], h_ranges[j]:h_ranges[j+1], 2].reshape(-1)
+            vals = np.histogram2d(cr, cb, bins=(np.arange(42, 226, 10), np.arange(20, 223, 10)))[0]
+            #vals = np.histogram2d(cr, cb, bins=(np.arange(0, 255, 20), np.arange(0, 255, 20)))[0]
             normalized_hist = vals/vals.sum()
             descriptor.append(normalized_hist)
     
     return np.array(descriptor).reshape(-1)
 
-def celled_2dhist2(img, cells=[12, 12]):
+def celled_2dhist2(img, cells=[16, 16]): # opt: 14
     """ Divide image in cells and compute the histogram.
     Downsides: bigger descriptor, rotation, illumination (?) """
+
     m = 0.05
     p1, p2 = int(img.shape[0]*m), int(img.shape[1]*m)
     img = img[p1:img.shape[0]-p1, p2:img.shape[0]-p2]
@@ -97,15 +100,43 @@ def celled_2dhist2(img, cells=[12, 12]):
     w_ranges = [(i*w)//cells[0] for i in range(cells[0])]+[-1]
     h_ranges = [(i*h)//cells[1] for i in range(cells[1])]+[-1]
 
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
 
     for i in range(cells[0]):
         for j in range(cells[1]):
-            cr = img[w_ranges[i]:w_ranges[i+1], h_ranges[i]:h_ranges[i+1], 0].reshape(-1)
-            cb = img[w_ranges[i]:w_ranges[i+1], h_ranges[i]:h_ranges[i+1], 2].reshape(-1)
-            vals = np.histogram2d(cr, cb, bins=(np.arange(0, 255, 5), np.arange(0, 255, 5)))[0]
+            img_part = img[w_ranges[i]:w_ranges[i+1], h_ranges[i]:h_ranges[i+1]]
+            cr = img_part[:, :, 1].reshape(-1)
+            cb = img_part[:, :, 2].reshape(-1)
+            vals = np.histogram2d(cr, cb, bins=(np.arange(0, 255, 10), np.arange(0, 255, 10)))[0]
             normalized_hist = vals/vals.sum()
+            #vals2 = np.histogram(img_part[:, :, 1], bins=(np.arange(0, 255, 20)))[0]
+            #normalized_hist2 = vals2/vals2.sum()
             descriptor.append(normalized_hist)
+            #descriptor.append(np.concatenate([normalized_hist.reshape(-1), normalized_hist2.reshape(-1)]))
+    
+    return np.array(descriptor).reshape(-1)
+
+def celled_2dhist3(img): # opt: 14
+    """ Divide image in cells and compute the histogram.
+    Downsides: bigger descriptor, rotation, illumination (?) """
+
+    m = 0.05
+    p1, p2 = int(img.shape[0]*m), int(img.shape[1]*m)
+    img = img[p1:img.shape[0]-p1, p2:img.shape[0]-p2]
+
+    descriptor = []
+
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
+
+    img_part = img
+    cr = img_part[:, :, 1].reshape(-1)
+    cb = img_part[:, :, 2].reshape(-1)
+    vals = np.histogram2d(cr, cb, bins=(np.arange(0, 255, 20), np.arange(0, 255, 20)))[0]
+    normalized_hist = vals/vals.sum()
+    vals2 = np.histogram(img_part[:, :, 1], bins=(np.arange(0, 255, 20)))[0]
+    normalized_hist2 = vals2/vals2.sum()
+    #descriptor.append(normalized_hist)
+    descriptor.append(np.concatenate([normalized_hist.reshape(-1), normalized_hist2.reshape(-1)]))
     
     return np.array(descriptor).reshape(-1)
 
@@ -114,7 +145,7 @@ METHOD_MAPPING = {
     1: celled_hist,
     2: celled_2dhist,
     3: celled_2dhist2,
-    4: dummy
+    4: celled_2dhist3
 }
 
 def get_method(method):

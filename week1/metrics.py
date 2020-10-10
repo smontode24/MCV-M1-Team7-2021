@@ -29,6 +29,23 @@ def hellinger_kernel(m1, m2):
     """ m1 (mxd), m2 (nxd) => similarities (mxn) (-distance) """
     return -np.sqrt(np.dot(m1, m2.T))
 
+def get_correlation(m1, m2):  
+    '''
+    Correlation, implemented according to opencv documentation on histogram comparison
+    '''
+    result = []
+
+    for i in range(m1.shape[0]):
+        row = []
+        for j in range(m2.shape[0]):
+            dev_a = (m1[i,:] - np.mean(m1[i,:]))
+            dev_b = (m2[j,:] - np.mean(m2[j,:]))
+
+            row.append(np.sum(dev_a*dev_b) / np.sqrt(np.sum(dev_a*dev_a)*np.sum(dev_b*dev_b)))
+        
+        result.append(row)
+    return -np.array(result)
+
 def js_div(m1, m2):
     result = []
 

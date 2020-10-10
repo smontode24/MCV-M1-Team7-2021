@@ -38,7 +38,7 @@ def match_paintings(args):
     # Obtain painting region from images
     if args.masking:
         masked_regions = bg_mask(qs_imgs) # TODO
-        # TODO: Apply mask
+        qs_imgs = apply_mask(qs_imgs, masked_regions)
 
     # Perform painting matching
     t0 = time()
