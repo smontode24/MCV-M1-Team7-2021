@@ -35,16 +35,29 @@ def load_annotations(anno_path):
 def mask_imgs_to_single_channel(img_list):
     return [(img[:,:,0] != 0).astype(np.uint8) for img in img_list]
 
-def load_query_set(db_path, load_masks=True):
+def load_query_set(db_path):
     """ Load query set db and annotations """ 
     img_list = load_images(db_path)
-    if load_masks:
-        masks_list = mask_imgs_to_single_channel(load_images(db_path, "png"))
-    else:
-        masks_list = []
+    masks_list = mask_imgs_to_single_channel(load_images(db_path, "png"))
     labels = load_annotations(os.path.join(db_path, QUERY_SET_ANN_PATH))
     return img_list, labels, masks_list
 
-def to_pkl(results, result_path):
+def to_pkl(results, result_path, k=10):
     """ Write results to pkl file in result_path """
-    pass
+    results_to_write = results[:, :10].tolist()
+    output = open(result_path, 'wb')
+    pickle.dump(results_to_write, output)
+    output.close()
+
+def save_masks(results, result_folder):
+    """ Save resulting masks (results) into the the output folder indicated by result_path """
+    for img_num, result in enumerate(results):
+        if len(result.shape) == 2:
+            mask = np.zeros((mask.shape[0], mask.shape[1], 3))
+            for i in range(3):
+                mask[:, :, i] = result
+        else:
+            mask = result
+
+        name = str(img_num).zfill(5)+".png"
+        cv2.imwrite(os.path.join(result_folder, name), mask)
