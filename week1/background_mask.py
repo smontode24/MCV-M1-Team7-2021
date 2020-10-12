@@ -23,11 +23,16 @@ def apply_mask(query_imgs, masks, method):
         if method == CBHS:
             x_min, x_max, y_min, y_max = positions[0][0], positions[0][-1], positions[1][0], positions[1][-1]
             img = img[x_min:x_max, y_min:y_max]
+        elif method == GRADIENT:
+            print('STUFF PENDING TO DO')
         else:
             img = img[mask]
         resulting_imgs.append(img)
         if isDebug():
-            print("hey, I'm debugging!!")
+            addDebugImage(img)
+    if isDebug():
+        showDebugImage()
+        print("Finished to apply masks")
     return resulting_imgs
 
 def grad(img, cells=[32, 32]):
