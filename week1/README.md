@@ -14,7 +14,7 @@ You can install these packages with pip using:
 ## List of methods
 <ul>
     <li> rm: [onedcelled, twodcelled, twodcelled2, 1dhist, 2dhist]</li>
-    <li> mm: [cbhs]</li>
+    <li> mm: [cbhs, grad (uner dev - WIP)]</li>
 </ul>
 
 ## Notes

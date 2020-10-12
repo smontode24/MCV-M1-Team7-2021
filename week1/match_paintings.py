@@ -27,8 +27,12 @@ def parse_input_args():
                         help="which method to use for painting retrieval")
     parser.add_argument("-mm", "--masking_method", default="cbhs",
                         help="which method to use for painting retrieval")
-    
+    parser.add_argument("-d", "--debug", default=0, type=int,
+                       help="shows images and some steps for debugging (0 no, 1 yes)")
+
     args = parser.parse_args()
+    if args.debug == 1:
+        setDebugMode(True)
     return args
 
 def match_paintings(args):
@@ -37,7 +41,7 @@ def match_paintings(args):
     qs_imgs, qs_gts, qs_mask_list = load_query_set(path.join(args.ds_path, args.qs_path))
 
     # Obtain painting region from images
-    if args.masking:
+    if args.masking:  # if mask arg == 1. Then apply mask to remove backgrounds
         # Obtain masks for the paintings
         masked_regions = bg_mask(qs_imgs, args.masking_method)
         # Apply the mask on images

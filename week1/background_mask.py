@@ -26,7 +26,12 @@ def apply_mask(query_imgs, masks, method):
         else:
             img = img[mask]
         resulting_imgs.append(img)
+        if isDebug():
+            print("hey, I'm debugging!!")
     return resulting_imgs
+
+def grad(img, cells=[32, 32]):
+    print("I'm here!!")
 
 def cell_based_hist_segmentation(img, cells=[32, 32]):
     """ Create a mask from image that indicates where the painting is located in the image """
@@ -123,10 +128,13 @@ def obtain_celled_histograms(img, cells, w_ranges, h_ranges):
         histogram_matrix.append(row)
     return histogram_matrix
 
+METHODS = ["cbhs", "grad"]
 CBHS = "cbhs"
+GRADIENT = "grad"
 
 MAP_METHOD = {
-    CBHS: cell_based_hist_segmentation
+    METHODS[0]: cell_based_hist_segmentation,
+    METHODS[1]: grad
 }
 
 def get_method(method=1):

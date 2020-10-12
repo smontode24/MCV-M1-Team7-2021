@@ -2,6 +2,16 @@ import numpy as np
 from scipy.spatial.distance import cdist
 """ Here create metrics: l2, l1, similarity metrics,... """
 
+DEBUGGING = False  #common flag to know if the main program is requesting debug (as metrics it's used everywhere)
+
+def setDebugMode(var):
+    global DEBUGGING
+    DEBUGGING = var
+    return DEBUGGING
+
+def isDebug():
+    return DEBUGGING
+
 def l2_dist(m1, m2):
     """ m1 (mxd), m2 (nxd) => similarities (mxn) (-distance) """
     x2 = np.sum(m1**2, axis=1, keepdims=True)
