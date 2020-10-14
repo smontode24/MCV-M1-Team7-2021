@@ -13,8 +13,8 @@ def load_images(db_path, ext="jpg"):
     """ Load images from path """
     file_list = glob.glob(os.path.join(db_path, "*."+ext))
     file_list.sort(key= lambda x: int(x.split(".")[-2][-5:]))
-    img_list = [cv2.resize(cv2.imread(img_p)[...,::-1], (256, 256)) for img_p in file_list]
-    #img_list = [cv2.imread(img_p)[...,::-1] for img_p in file_list]
+    #img_list = [cv2.resize(cv2.imread(img_p)[...,::-1], (256, 256)) for img_p in file_list]
+    img_list = [cv2.imread(img_p)[...,::-1] for img_p in file_list]
     return img_list
 
 def load_db(db_path):
@@ -53,7 +53,7 @@ def save_masks(results, result_folder):
     """ Save resulting masks (results) into the the output folder indicated by result_path """
     for img_num, result in enumerate(results):
         if len(result.shape) == 2:
-            mask = np.zeros((mask.shape[0], mask.shape[1], 3))
+            mask = np.zeros((result.shape[0], result.shape[1], 3))
             for i in range(3):
                 mask[:, :, i] = result
         else:

@@ -24,6 +24,16 @@ def apply_mask(query_imgs, masks, method):
             x_min, x_max, y_min, y_max = positions[0][0], positions[0][-1], positions[1][0], positions[1][-1]
             img = img[x_min:x_max, y_min:y_max]
         else:
+            if isDebug():
+                
+                mask_res = np.zeros((img.shape[0], img.shape[1], 3))
+                for i in range(3):
+                    mask_res[:,:,i] = mask
+
+                cv2.imshow("masked", mask_res)
+                cv2.waitKey(0)
+
+            mask = mask == 255
             img = img[mask]
         resulting_imgs.append(img)
         if isDebug():
@@ -44,6 +54,14 @@ def cell_based_hist_segmentation(img, cells=[32, 32]):
 
     rectangular_segm = obtain_rectangular_segmentation(celled_hist, cells)
     mask = create_mask(rectangular_segm, img, cells)
+    if isDebug():
+        cv2.imshow("original", img)
+        cv2.waitKey(1)
+        positions = np.where(mask == 255)
+        l,r,t,b = positions[0][0], positions[0][-1], positions[1][0], positions[1][-1]
+        masked_img = img[l:r, t:b]
+        cv2.imshow("masked", masked_img)
+        cv2.waitKey(0)
     return mask
 
 def create_mask(masking_matrix, img, cells):
@@ -56,11 +74,11 @@ def create_mask(masking_matrix, img, cells):
     mask = np.ones((img.shape[0], img.shape[1]))*255
 
     # Compute corresponding positions and put zeros in the background part
-    left = (img.shape[0]//cells[0])*left
+    left = (img.shape[1]//cells[0])*left
     mask[:, :left] = 0
-    right = img.shape[0]-(img.shape[0]//cells[0])*right
+    right = img.shape[1]-(img.shape[1]//cells[0])*right
     mask[:, right:] = 0
-    top = (img.shape[1]//cells[1])*top
+    top = (img.shape[0]//cells[1])*top
     mask[:top, :] = 0
     bottom = img.shape[0]-(img.shape[0]//cells[0])*bottom
     mask[bottom:, :] = 0
@@ -68,13 +86,37 @@ def create_mask(masking_matrix, img, cells):
     masks = mask.astype(np.uint8)
     return mask
 
+def histogram_segmentation(img):
+    
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2Lab) 
+    
+    # Segmentation based on border statistics
+    l_mean = (np.mean(img[0, :, 0]) + np.mean(img[:, 0, 0]) + np.mean(img[-1, :, 0]) + np.mean(img[:, -1, 0]))/4
+    a_mean = (np.mean(img[0, :, 1]) + np.mean(img[:, 0, 1]) + np.mean(img[-1, :, 1]) + np.mean(img[:, -1, 1]))/4
+    b_mean = (np.mean(img[0, :, 2]) + np.mean(img[:, 0, 2]) + np.mean(img[-1, :, 2]) + np.mean(img[:, -1, 2]))/4
+
+    l_std = (np.concatenate([img[0, :, 0].reshape(-1), img[:, 0, 0].reshape(-1), img[-1, :, 0].reshape(-1), img[:, -1, 0].reshape(-1)])).std()
+    a_std = (np.concatenate([img[0, :, 1].reshape(-1), img[:, 0, 1].reshape(-1), img[-1, :, 1].reshape(-1), img[:, -1, 1].reshape(-1)])).std()
+    b_std = (np.concatenate([img[0, :, 2].reshape(-1), img[:, 0, 2].reshape(-1), img[-1, :, 2].reshape(-1), img[:, -1, 2].reshape(-1)])).std()
+
+    ts = 3
+    lower_limit = np.array([l_mean-ts*l_std, a_mean-ts*a_std, b_mean-ts*b_std])
+    upper_limit = np.array([l_mean+ts*l_std, a_mean+ts*a_std, b_mean+ts*b_std])
+
+    # Create mask
+    mask = (cv2.inRange(img, lower_limit.astype(np.int), upper_limit.astype(np.int)) != 255).astype(np.uint8)
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    mask = np.zeros_like(mask)
+    new_mask = cv2.fillPoly(mask, contours, 255)
+    return new_mask
+
 def sm(x):
     """ Softmax """
     e_x = np.exp(x - np.max(x))
     return e_x / e_x.sum(axis=0)
 
 def compute_positions(scores, layers, cells, direction):
-
+    """ Compute position that has greater change in the histogram """
     prior = 1/np.arange(3, layers+3)
     prior = prior/prior.sum()
     x = np.linspace(-5, 5, layers)[::-1] 
@@ -93,10 +135,11 @@ def compute_positions(scores, layers, cells, direction):
         col_scores = np.array([scores[np.arange(cells[1])+cells[1]*(cells[0]-1-j), np.arange(cells[1])+cells[1]*(cells[0]-1-j-1)].sum() for j in range(layers)])
      
     col_scores = sm(col_scores)
-    position = np.argmax(col_scores*prior) # prior*col_scores
+    position = np.argmax(col_scores*prior)
     return position
 
 def obtain_rectangular_segmentation(celled_hist, cells):
+    """ Obtain left, top, right and bottom positions in the celled histogram that provides maximum change """
     celled_hist = np.array(celled_hist).reshape(cells[0]*cells[1], -1)
     scores = l1_dist(celled_hist, celled_hist)
 
@@ -128,13 +171,17 @@ def obtain_celled_histograms(img, cells, w_ranges, h_ranges):
         histogram_matrix.append(row)
     return histogram_matrix
 
-METHODS = ["cbhs", "grad"]
+def dummy(img):
+    return np.ones((img.shape[0], img.shape[1])) == 1
+
+METHODS = ["cbhs", "grad", "hist"]
 CBHS = "cbhs"
 GRADIENT = "grad"
 
 MAP_METHOD = {
     METHODS[0]: cell_based_hist_segmentation,
-    METHODS[1]: grad
+    METHODS[1]: grad,
+    METHODS[2]: histogram_segmentation
 }
 
 def get_method(method=1):

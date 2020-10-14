@@ -23,6 +23,8 @@ def parse_input_args():
                         help="output file to write pkl file with results")
     parser.add_argument("--output_mask", type=str,
                         help="output folder to save predicted masks")
+    parser.add_argument("--matching_measure", type=str, default="l1_dist",
+                        help="matching measures [l1_dist, l2_dist, js_div]")
     parser.add_argument("-rm", "--retrieval_method", default="twodcelled",
                         help="which method to use for painting retrieval")
     parser.add_argument("-mm", "--masking_method", default="cbhs",
@@ -37,8 +39,13 @@ def parse_input_args():
 
 def match_paintings(args):
     # Load DB
+    if isDebug():
+        t0 = time()
     db_imgs, db_annotations = load_db(path.join(args.ds_path, args.db_path))
     qs_imgs, qs_gts, qs_mask_list = load_query_set(path.join(args.ds_path, args.qs_path))
+
+    if isDebug():
+        print("Time to load DB and query set:", time()-t0,"s")
 
     # Obtain painting region from images
     if args.masking:  # if mask arg == 1. Then apply mask to remove backgrounds
@@ -49,7 +56,7 @@ def match_paintings(args):
 
     # Perform painting matching
     t0 = time()
-    assignments = painting_matching(qs_imgs, db_imgs, args.retrieval_method)
+    assignments = painting_matching(qs_imgs, db_imgs, args.retrieval_method, metric=get_measure(args.matching_measure))
     print("Matching in", time()-t0,"s")
 
     # If query set annotations are available, evaluate 
@@ -68,6 +75,8 @@ def match_paintings(args):
 
         print("MAP@1:", map_at_1)
         print("MAP@5:", map_at_5)
+    
+    print("Done")
 
     # Save to pkl file if necessary
     if args.output_pkl:

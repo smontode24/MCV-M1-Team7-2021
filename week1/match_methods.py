@@ -8,7 +8,7 @@ import cv2
 - FFT? Remove hf, sparkles....
 """
 
-def painting_matching(imgs, db_imgs, method_name, metric=l1_dist, splits=30, max_rank=10): 
+def painting_matching(imgs, db_imgs, method_name, metric=js_div, splits=30, max_rank=10): 
     """ Obtain query images matches.
         Params:
             - imgs: query set of images [img1, img2,...]
@@ -133,9 +133,8 @@ def oned_hist(img):
 
 def twod_hist(img):
     """ Two dimensional histogram of images without using the illumination channel. """
-
     img, p1, p2 = remove_frame(img)
-
+    img = img.reshape(1, -1, 3)
     descriptor = []
 
     img = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
