@@ -34,6 +34,7 @@ def apply_mask(query_imgs, masks, method):
         else:
             mask = mask == 255
             img = img[mask].reshape(-1, 3)
+
         resulting_imgs.append(img)
         
         if isDebug():

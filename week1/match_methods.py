@@ -83,7 +83,7 @@ def celled_2dhist(img, cells=[16, 16]):
     h_ranges = [(i*h)//cells[1] for i in range(cells[1])]+[-1]
 
     img = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
-
+    
     for i in range(cells[0]):
         for j in range(cells[1]):
             cr = img[w_ranges[i]:w_ranges[i+1], h_ranges[j]:h_ranges[j+1], 1].reshape(-1)
@@ -132,7 +132,7 @@ def twod_hist(img):
     vals = np.histogram2d(cr, cb, bins=(np.arange(0, 255, 5), np.arange(0, 255, 5)))[0]
     normalized_hist = vals/vals.sum()
     vals2 = np.histogram(img_part[:, :, 0], bins=(np.arange(0, 255, 5)))[0]
-    normalized_hist2 = vals2/(vals2.sum()+1e-10)
+    normalized_hist2 = vals2/vals2.sum()
     descriptor.append(np.concatenate([normalized_hist.reshape(-1), normalized_hist2.reshape(-1)]))
     
     return np.array(descriptor).reshape(-1)
