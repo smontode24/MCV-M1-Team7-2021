@@ -207,7 +207,7 @@ def obtain_celled_histograms(img, cells, w_ranges, h_ranges):
             vals = np.histogram2d(cr, cb, bins=(np.arange(42, 226, 10), np.arange(20, 223, 10)))[0]
             normalized_hist = vals/vals.sum()
             vals2 = np.histogram(img_part[:, :, 0], bins=(np.arange(0, 255, 20)))[0]
-            normalized_hist2 = vals2/vals2.sum()
+            normalized_hist2 = vals2/(vals2.sum()+1e-10)
             row.append(np.concatenate([normalized_hist.reshape(-1), normalized_hist2.reshape(-1)]))
         histogram_matrix.append(row)
     return histogram_matrix
