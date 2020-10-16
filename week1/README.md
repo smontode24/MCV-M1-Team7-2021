@@ -13,8 +13,8 @@ You can install these packages with pip using:
 
 ## List of methods
 <ul>
-    <li> rm: [onedcelled, twodcelled, twodcelled2, 1dhist, 2dhist]</li>
-    <li> mm: [cbhs, grad (uner dev - WIP)]</li>
+    <li> rm: [onedcelled, CBHC, twodcelled2, 1dhist, 2dhist]</li>
+    <li> mm: [CBHS, PBM]</li>
 </ul>
 
 ## Notes
@@ -23,3 +23,9 @@ You can install these packages with pip using:
     -db_folder \
     -- BBDD \
     -- qsd1_w1
+
+Method reference list:
+- CBHC: Cell-based histogram comparison
+- CBHS: Cell-based histogram segmentation
+- PBM: Probability-based masking
+- 2dhist: Color histogram (2D luminance + 1D luminance histograms -> Descriptor)

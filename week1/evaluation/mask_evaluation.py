@@ -183,7 +183,13 @@ def bbox_iou(bboxA, bboxB):
     return iou
 
 def mask_metrics(mask_predictions, mask_gts):
-    """ Compute precision, recall, accuracy and F1 metric. """
+    """ Compute precision, recall, accuracy and F1 metric. 
+        params:
+            mask_predictions: Mask predictions (Gray image. 0->Background, 255->Painting)
+            mask_gts: Mask groundtruths (Gray image. 0->Background, 255->Painting)
+        returns:
+            [precision, recall, accuracy, f1-measure]
+    """
     results = np.array([performance_accumulation_pixel(mask_pred, mask_gt) for mask_pred, mask_gt in zip(mask_predictions, mask_gts)])
     TP, FP, FN, _ = results.sum(axis=0)
     pre, rec, acc, f1 = performance_evaluation_window(TP, FN, FP)

@@ -1,55 +1,58 @@
 import numpy as np
 import cv2
 from metrics import *
-
-""" TODO: Painting region masking:
-- Color histograms
-- Locate countours (high x and y gradients)
-- Morphological operations to fill holes / remove unnecesary isolated parts
-- Histogram in cells, and compare to adjacent ones. If different->change bg/fg.
-"""
+import scipy.stats as stats
+from debug_utils import *
 
 def bg_mask(query_imgs, method): 
-    """ Obtain mask from image """
+    """ Obtain a mask for each image in the list of images query_img. The method will be determined by the passed method argument.
+    Available methods are: "CBHS" and "PBM". 
+        params: 
+            query_imgs: List of images of the query set
+            method: ["CBHS", "PBM"]
+        returns:
+            List of masks [2D images with 1 channel]. A pixel = 0 means background, and pixel = 255 painting
+    """
     print("Obtaining masks")
     segmentation_method = get_method(method)
     return [segmentation_method(img) for img in query_imgs]
 
 def apply_mask(query_imgs, masks, method): 
-    """ Apply mask to each image in the query set, based on the method that was applied """
+    """ Apply mask to each image in the query set, based on the method that was applied 
+            params:
+                query_imgs: List of images that will be masked
+                masks: List of masks to apply to each image
+        returns: 
+                List of masked images
+    """
     resulting_imgs = []
     for img, mask in zip(query_imgs, masks):
         positions = np.where(mask == 255)
-        if method == CBHS:
+        if method == CBHS: # Special treatment for cell-based bg segmentation to mantain 
             x_min, x_max, y_min, y_max = positions[0][0], positions[0][-1], positions[1][0], positions[1][-1]
             img = img[x_min:x_max, y_min:y_max]
-        elif method == GRADIENT:
-            print('STUFF PENDING TO DO')
         else:
-            if isDebug():
-                
-                mask_res = np.zeros((img.shape[0], img.shape[1], 3))
-                for i in range(3):
-                    mask_res[:,:,i] = mask
-
-                cv2.imshow("masked", mask_res)
-                cv2.waitKey(0)
-
             mask = mask == 255
-            img = img[mask]
+            img = img[mask].reshape(-1, 3)
         resulting_imgs.append(img)
+        
         if isDebug():
             addDebugImage(img)
     if isDebug():
         showDebugImage()
         print("Finished to apply masks")
+    
     return resulting_imgs
 
-def grad(img, cells=[32, 32]):
-    print("I'm here!!")
-
 def cell_based_hist_segmentation(img, cells=[32, 32]):
-    """ Create a mask from image that indicates where the painting is located in the image """
+    """ Create a mask from image that indicates where the painting is located in the image.
+            params:
+                img: image where the mask will be estimated
+                cells: list with two elements indicating the amount of cells in which the image will be decomposed. 
+                        e.g., cells=[32,32] divide image into 32x32 cells.
+            returns:
+                Mask indicating the part that corresponds to the painting 
+    """
     descriptor = []
     w,h = img.shape[:2]
     w_ranges = [(i*w)//cells[0] for i in range(cells[0])]+[-1]
@@ -59,19 +62,19 @@ def cell_based_hist_segmentation(img, cells=[32, 32]):
 
     rectangular_segm = obtain_rectangular_segmentation(celled_hist, cells)
     mask = create_mask(rectangular_segm, img, cells)
-    if isDebug():
-        cv2.imshow("original", img)
-        cv2.waitKey(1)
-        positions = np.where(mask == 255)
-        l,r,t,b = positions[0][0], positions[0][-1], positions[1][0], positions[1][-1]
-        masked_img = img[l:r, t:b]
-        cv2.imshow("masked", masked_img)
-        cv2.waitKey(0)
     return mask
 
-def create_mask(masking_matrix, img, cells):
-    """ Create mask from the positions that were estimated in the celled based histogram method """
-    left, right, top, bottom = masking_matrix
+def create_mask(masking_positions, img, cells):
+    """ Create mask from the positions that were estimated in the celled-based histogram method.
+        params:
+            masking_positions: positions where the rectangle positions have been detected (left, right, top, bottom). These positions refer to positions
+            in the image that was decomposed into cells.
+            img: Image where the mask will be applied.
+            cells: Cells that the image has been decomposed to. (e.g., [32,32])
+        returns:
+            2D mask with 1 channel. 0 = background, 255 = painting
+     """
+    left, right, top, bottom = masking_positions
     left += 1
     right += 1
     top += 1
@@ -91,28 +94,38 @@ def create_mask(masking_matrix, img, cells):
     masks = mask.astype(np.uint8)
     return mask
 
-def histogram_segmentation(img):
-    
+def pbm_segmentation(img, margin=0.02, threshold=0.00001):
+    """ Probability-based segmentation. Model the background with a multivariate gaussian distribution. 
+            img: Image to be segmented
+            margin: Part of image being certainly part of the background 
+            threshold: Threshold to reject a pixel as not being part of the background
+        returns: Mask image, indicating the painting part in the image
+    """
+
     img = cv2.cvtColor(img, cv2.COLOR_BGR2Lab) 
+    h_m, w_m = int(img.shape[0]*margin), int(img.shape[1]*margin)
+
+    # Compute mean and standard deviation for each channel separately
+    l_mean = (np.concatenate([img[:h_m, :, 0].reshape(-1), img[:, :w_m, 0].reshape(-1), img[img.shape[0]-h_m:, :, 0].reshape(-1), \
+                             img[:, img.shape[1]-w_m:, 0].reshape(-1)])).mean()
+    a_mean = (np.concatenate([img[:h_m, :, 1].reshape(-1), img[:, :w_m, 1].reshape(-1), img[img.shape[0]-h_m:, :, 1].reshape(-1), \
+                             img[:, img.shape[1]-w_m:, 1].reshape(-1)])).mean()
+    b_mean = (np.concatenate([img[:h_m, :, 2].reshape(-1), img[:, :w_m, 2].reshape(-1), img[img.shape[0]-h_m:, :, 2].reshape(-1), \
+                             img[:, img.shape[1]-w_m:, 2].reshape(-1)])).mean()
+
+    l_std = (np.concatenate([img[:h_m, :, 0].reshape(-1), img[:, :w_m, 0].reshape(-1), img[img.shape[0]-h_m:, :, 0].reshape(-1), \
+                             img[:, img.shape[1]-w_m:, 0].reshape(-1)])).std()
+    a_std = (np.concatenate([img[:h_m, :, 1].reshape(-1), img[:, :w_m, 1].reshape(-1), img[img.shape[0]-h_m:, :, 1].reshape(-1), \
+                             img[:, img.shape[1]-w_m:, 1].reshape(-1)])).std()
+    b_std = (np.concatenate([img[:h_m, :, 2].reshape(-1), img[:, :w_m, 2].reshape(-1), img[img.shape[0]-h_m:, :, 2].reshape(-1), \
+                             img[:, img.shape[1]-w_m:, 2].reshape(-1)])).std()
+
+    # Model background and discard unlikely pixels
+    mask = stats.norm.pdf(img[:,:,0], l_mean, l_std)*stats.norm.pdf(img[:,:,1], a_mean, a_std)*stats.norm.pdf(img[:,:,2], b_mean, b_std) < threshold
     
-    # Segmentation based on border statistics
-    l_mean = (np.mean(img[0, :, 0]) + np.mean(img[:, 0, 0]) + np.mean(img[-1, :, 0]) + np.mean(img[:, -1, 0]))/4
-    a_mean = (np.mean(img[0, :, 1]) + np.mean(img[:, 0, 1]) + np.mean(img[-1, :, 1]) + np.mean(img[:, -1, 1]))/4
-    b_mean = (np.mean(img[0, :, 2]) + np.mean(img[:, 0, 2]) + np.mean(img[-1, :, 2]) + np.mean(img[:, -1, 2]))/4
-
-    l_std = (np.concatenate([img[0, :, 0].reshape(-1), img[:, 0, 0].reshape(-1), img[-1, :, 0].reshape(-1), img[:, -1, 0].reshape(-1)])).std()
-    a_std = (np.concatenate([img[0, :, 1].reshape(-1), img[:, 0, 1].reshape(-1), img[-1, :, 1].reshape(-1), img[:, -1, 1].reshape(-1)])).std()
-    b_std = (np.concatenate([img[0, :, 2].reshape(-1), img[:, 0, 2].reshape(-1), img[-1, :, 2].reshape(-1), img[:, -1, 2].reshape(-1)])).std()
-
-    ts = 3
-    lower_limit = np.array([l_mean-ts*l_std, a_mean-ts*a_std, b_mean-ts*b_std])
-    upper_limit = np.array([l_mean+ts*l_std, a_mean+ts*a_std, b_mean+ts*b_std])
-
-    # Create mask
-    mask = (cv2.inRange(img, lower_limit.astype(np.int), upper_limit.astype(np.int)) != 255).astype(np.uint8)
-    contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    mask = np.zeros_like(mask)
-    new_mask = cv2.fillPoly(mask, contours, 255)
+    new_mask = np.zeros_like(mask).astype(np.uint8)
+    new_mask[mask] = 255
+    
     return new_mask
 
 def sm(x):
@@ -121,15 +134,20 @@ def sm(x):
     return e_x / e_x.sum(axis=0)
 
 def compute_positions(scores, layers, cells, direction):
-    """ Compute position that has greater change in the histogram """
+    """ Compute position that has greater change in the cell histogram matrix.
+        params:
+            scores: (c0xc1)x(c0xc1) matrix that contains the similarity between the cell k and cell j in the position [k,j] (flattened cell grid).
+            layers: number of layers until reaching the center
+            direction: lr, rl, tb or bt
+        returns: Position of maximum change
+     """
     prior = 1/np.arange(3, layers+3)
     prior = prior/prior.sum()
     x = np.linspace(-5, 5, layers)[::-1] 
     prior = 1/(1 + np.exp(-x))
     prior = prior/prior.sum()
 
-    posterior = []
-
+    # Compute the probability depending on the direction in which we want to know where the change is
     if direction == "lr":
         col_scores = np.array([scores[np.arange(cells[0])*cells[1]+j, np.arange(cells[0])*cells[1]+j+1].sum() for j in range(layers)])
     elif direction == "rl":
@@ -139,12 +157,19 @@ def compute_positions(scores, layers, cells, direction):
     elif direction == "bt":
         col_scores = np.array([scores[np.arange(cells[1])+cells[1]*(cells[0]-1-j), np.arange(cells[1])+cells[1]*(cells[0]-1-j-1)].sum() for j in range(layers)])
      
+    # Apply softmax + multiply by prior -> Then get the most likely position
     col_scores = sm(col_scores)
     position = np.argmax(col_scores*prior)
     return position
 
 def obtain_rectangular_segmentation(celled_hist, cells):
-    """ Obtain left, top, right and bottom positions in the celled histogram that provides maximum change """
+    """ Obtain left, top, right and bottom positions in the celled histogram that provides maximum change. With these positions
+    a rectangular matrix can be constructed.
+    params:
+        celled_hist: matrix (size depends on the amount of cells) with 2D histograms (one for each cell)
+        cells: Size of the cell division (e.g., cells=[32,32] divides image into 32x32 cells)
+    returns: Rectangle coordinates for the rectangular segmentation [left, right, top, bottom]
+    """
     celled_hist = np.array(celled_hist).reshape(cells[0]*cells[1], -1)
     scores = l1_dist(celled_hist, celled_hist)
 
@@ -156,8 +181,19 @@ def obtain_rectangular_segmentation(celled_hist, cells):
     return left, right, top, bottom
 
 def obtain_celled_histograms(img, cells, w_ranges, h_ranges):
-    """ Rectangular mask segmentation. It compares the change in histograms for each consecutive row/column to create
-    a rectangular region. """
+    """ Compute a cell matrix histogram. If cells=[32,32], returns a 32x32 matrix where each position contains a 2D color histogram (image descriptor).
+        params:
+            img: Image that will have the descriptor extracted 
+            cells: Cells that the image has been decomposed to. (e.g., [32,32])
+            w_ranges and h_ranges indicate the pixel position divisions of the cells.
+            Example:
+                cell = [4,4]
+                img shape = [48,48]
+                w_ranges = [0, 12, 24, 36, 48]
+                h_ranges = [0, 12, 24, 36, 48]
+        returns:
+            Image descriptor
+    """
     results = []
     img = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
     histogram_matrix = []
@@ -170,23 +206,19 @@ def obtain_celled_histograms(img, cells, w_ranges, h_ranges):
             cb = img_part[:, :, 2].reshape(-1)
             vals = np.histogram2d(cr, cb, bins=(np.arange(42, 226, 10), np.arange(20, 223, 10)))[0]
             normalized_hist = vals/vals.sum()
-            vals2 = np.histogram(img_part[:, :, 1], bins=(np.arange(0, 255, 10)))[0]
+            vals2 = np.histogram(img_part[:, :, 0], bins=(np.arange(0, 255, 20)))[0]
             normalized_hist2 = vals2/vals2.sum()
             row.append(np.concatenate([normalized_hist.reshape(-1), normalized_hist2.reshape(-1)]))
         histogram_matrix.append(row)
     return histogram_matrix
 
-def dummy(img):
-    return np.ones((img.shape[0], img.shape[1])) == 1
-
-METHODS = ["cbhs", "grad", "hist"]
-CBHS = "cbhs"
-GRADIENT = "grad"
+CBHS = "CBHS"
+PBM = "PBM"
+METHODS = [CBHS, PBM]
 
 MAP_METHOD = {
     METHODS[0]: cell_based_hist_segmentation,
-    METHODS[1]: grad,
-    METHODS[2]: histogram_segmentation
+    METHODS[1]: pbm_segmentation
 }
 
 def get_method(method=1):

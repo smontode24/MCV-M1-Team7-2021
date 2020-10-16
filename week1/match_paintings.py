@@ -8,8 +8,10 @@ from evaluation.mask_evaluation import *
 from evaluation.retrieval_evaluation import *
 from time import time
 from io_utils import *
+from debug_utils import *
 
 def parse_input_args():
+    """ Parse program arguments """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("ds_path", type=str,
                         help="path to folder with db + query set")
@@ -24,10 +26,10 @@ def parse_input_args():
     parser.add_argument("--output_mask", type=str,
                         help="output folder to save predicted masks")
     parser.add_argument("--matching_measure", type=str, default="l1_dist",
-                        help="matching measures [l1_dist, l2_dist, js_div]")
-    parser.add_argument("-rm", "--retrieval_method", default="twodcelled",
+                        help="matching measures [l1_dist, l2_dist, js_div, hellinger]")
+    parser.add_argument("-rm", "--retrieval_method", default="CBHC",
                         help="which method to use for painting retrieval")
-    parser.add_argument("-mm", "--masking_method", default="cbhs",
+    parser.add_argument("-mm", "--masking_method", default="CBHS",
                         help="which method to use for painting retrieval")
     parser.add_argument("-d", "--debug", default=0, type=int,
                        help="shows images and some steps for debugging (0 no, 1 yes)")
@@ -38,9 +40,11 @@ def parse_input_args():
     return args
 
 def match_paintings(args):
-    # Load DB
+    
     if isDebug():
         t0 = time()
+    
+    # Load DB
     db_imgs, db_annotations = load_db(path.join(args.ds_path, args.db_path))
     qs_imgs, qs_gts, qs_mask_list = load_query_set(path.join(args.ds_path, args.qs_path))
 
@@ -48,7 +52,7 @@ def match_paintings(args):
         print("Time to load DB and query set:", time()-t0,"s")
 
     # Obtain painting region from images
-    if args.masking:  # if mask arg == 1. Then apply mask to remove backgrounds
+    if args.masking:
         # Obtain masks for the paintings
         masked_regions = bg_mask(qs_imgs, args.masking_method)
         # Apply the mask on images
@@ -60,6 +64,7 @@ def match_paintings(args):
     print("Matching in", time()-t0,"s")
 
     # If query set annotations are available, evaluate 
+    # Evaluate painting mask
     if len(qs_mask_list) > 0:
         pre, rec, acc, f1 = mask_metrics(masked_regions, qs_mask_list)
 
@@ -68,6 +73,7 @@ def match_paintings(args):
         print("Accuracy", acc)
         print("F1-measure", f1)
 
+    # Evaluate painting matching
     if len(qs_gts) > 0:
         qs_gts = qs_gts.reshape(len(qs_gts), 1)
         map_at_1 = mapk(qs_gts, assignments, k=1)
