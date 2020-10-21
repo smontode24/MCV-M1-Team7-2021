@@ -71,16 +71,11 @@ def pbm_segmentation(img, margin=0.02, threshold=0.000001):
             threshold: Threshold to reject a pixel as not being part of the background
         returns: Mask image, indicating the painting part in the image
     """
-
-    #img = cv2.cvtColor(img, cv2.COLOR_BGR2HLS) 
     img = cv2.cvtColor(img, cv2.COLOR_BGR2Lab) 
     # Mask based on a bivariate gaussian distribution
     mask = compute_mask_gaussian_HSL(img, margin, threshold)
-    #cv2.imshow("a", cv2.resize(mask.astype(np.uint8)*255, (512,512)))
     
     # Compute mask based on connected components
-    #new_mask = np.zeros_like(mask).astype(np.uint8)
-    #new_mask[mask] = 255
     results = mask_segmentation_cc(img, mask)
     return results
 
@@ -116,9 +111,6 @@ def mask_segmentation_cc(img, mask):
     return resulting_masks, bboxes
 
 def create_convex_painting(mask, component_mask):
-    
-    #kernel = np.ones((int(mask.shape[0]*1/10), int(mask.shape[0]*1/10)), np.uint8)
-    #component_mask = cv2.morphologyEx(component_mask, cv2.MORPH_CLOSE, kernel, borderValue=0)
     kernel = np.ones((5, 5), np.uint8)
     component_mask = cv2.morphologyEx(component_mask, cv2.MORPH_CLOSE, kernel, borderValue=0)
     contours, hierarchy = cv2.findContours((component_mask == 255).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -126,10 +118,10 @@ def create_convex_painting(mask, component_mask):
     polished_mask = cv2.fillPoly(mask, contours, 255).astype(np.uint8)
     a = polished_mask.copy()
 
-    size1,size2 = int(mask.shape[0]*1/8),int(mask.shape[1]*1/8)
+    size1, size2 = int(mask.shape[0]*1/16),int(mask.shape[1]*1/16)
     kernel = np.ones((size1, size2), np.uint8)
     polished_mask = cv2.morphologyEx(polished_mask, cv2.MORPH_CLOSE, kernel, borderValue=0)
-    size1,size2 = int(mask.shape[0]*1/6),int(mask.shape[1]*1/6)
+    size1, size2 = int(mask.shape[0]*1/8),int(mask.shape[1]*1/8)
     kernel = np.ones((size1, size2), np.uint8)
     polished_mask = cv2.morphologyEx(polished_mask, cv2.MORPH_OPEN, kernel, borderValue=0)
     return polished_mask
