@@ -40,6 +40,17 @@ def parse_input_args():
                        help="shows images and some steps for debugging (0 no, 1 yes)")
 
     args = parser.parse_args()
+
+    # TODO: @Sergi
+    # Add a public check (WARNING) that if the size between qs_imgs, qs_gts & qs_mask_list is different
+    # maybe there's an error while loading
+    #
+    # Size of qs_imgs:          30
+    # Size of qs_gts :          30
+    # Size of qs_mask_list:     0        <<< HERE THE WARNING
+    # Size of qs_text_bboxes:   30
+    #
+
     if args.debug == 1:
         setDebugMode(True)
     return args
