@@ -3,6 +3,7 @@ from io_utils import *
 from os import path
 from background_mask import *
 from match_methods import *
+from text_segmentation import *
 from metrics import *
 from evaluation.mask_evaluation import *
 from evaluation.retrieval_evaluation import *
@@ -33,6 +34,8 @@ def parse_input_args():
                         help="which method to use for painting retrieval")
     parser.add_argument("-mm", "--masking_method", default="PBM",
                         help="which method to use for painting retrieval")
+    parser.add_argument("-tm", "--text_method", default="SM",
+                        help="which method to use for text masking")
     parser.add_argument("-d", "--debug", default=0, type=int,
                        help="shows images and some steps for debugging (0 no, 1 yes)")
 
@@ -52,6 +55,7 @@ def match_paintings(args):
 
     if isDebug():
         print("Time to load DB and query set:", time()-t0,"s")
+        t0 = time()
 
     # Obtain painting region from images
     if args.masking:
@@ -60,13 +64,17 @@ def match_paintings(args):
     else:
         # Convert list of images into list of list of images (as without masking there will be a single painting, 
         # we just have to add a list structure with one image)
-        qs_imgs = [[[np.ones(image)*255], [[0, 0, image.shape[0], image.shape[1]]]] for image in qs_imgs]
+        masked_regions = [[[np.ones((image.shape[0], image.shape[1])).astype(bool)] for image in qs_imgs], \
+                          [[0, 0, image.shape[0], image.shape[1]] for image in qs_imgs]]
+
+    if isDebug():
+        print("Extracted masks in:", time()-t0,"s")
 
     # Crop paintings rectangularly to later extract text
-    # TODO
+    cropped_qs_imgs = crop_painting_for_text(qs_imgs, masked_regions[1])
 
     # Compute for each painting its text segmentation
-    # TODO: Text segmentation
+    text_regions = estimate_text_mask(cropped_qs_imgs, args.text_method)
 
     # Apply the mask on images. This is done after text segmentation because the text segmentation needs 
     # rectangular crops
@@ -80,9 +88,9 @@ def match_paintings(args):
 
     # If query set annotations are available, evaluate
     # Evalute mIoU
-    """ if qs_text_bboxes != None:
-        mIoU = text_mIoU(assignments, qs_text_bboxes)
-        print("Mean IoU text mask:", mIoU) """ 
+    if qs_text_bboxes != None:
+        mIoU = text_mIoU(text_regions[1], qs_text_bboxes)
+        print("Mean IoU text mask:", mIoU) 
 
     # Evaluate painting mask
     if len(qs_mask_list) > 0 and args.masking:

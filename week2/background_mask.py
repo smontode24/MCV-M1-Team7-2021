@@ -118,10 +118,10 @@ def create_convex_painting(mask, component_mask):
     polished_mask = cv2.fillPoly(mask, contours, 255).astype(np.uint8)
     a = polished_mask.copy()
 
-    size1, size2 = int(mask.shape[0]*1/16),int(mask.shape[1]*1/16)
+    size1, size2 = int(mask.shape[0]*1/32),int(mask.shape[1]*1/32)
     kernel = np.ones((size1, size2), np.uint8)
     polished_mask = cv2.morphologyEx(polished_mask, cv2.MORPH_CLOSE, kernel, borderValue=0)
-    size1, size2 = int(mask.shape[0]*1/8),int(mask.shape[1]*1/8)
+    size1, size2 = int(mask.shape[0]*1/16),int(mask.shape[1]*1/16)
     kernel = np.ones((size1, size2), np.uint8)
     polished_mask = cv2.morphologyEx(polished_mask, cv2.MORPH_OPEN, kernel, borderValue=0)
     return polished_mask
@@ -131,10 +131,11 @@ def takes_most_part_image(img):
     return img[h_quarter, w_quarter*2] == 1 and img[h_quarter*2, w_quarter] == 1 and img[h_quarter*3, w_quarter*2] == 1 and img[h_quarter*2, w_quarter*3] == 1
 
 def get_bbox(mask):
+    num_pixel_estimation = 20
     positions = np.where(mask==255)
     hs, ws = sorted(positions[0]), sorted(positions[1])
-    h_min, h_max = int(np.array(hs[:20]).mean()), int(np.array(hs[-20:]).mean())
-    w_min, w_max = int(np.array(ws[:20]).mean()), int(np.array(ws[-20:]).mean())
+    h_min, h_max = int(np.array(hs[:num_pixel_estimation]).mean()), int(np.array(hs[-num_pixel_estimation:]).mean())
+    w_min, w_max = int(np.array(ws[:num_pixel_estimation]).mean()), int(np.array(ws[-num_pixel_estimation:]).mean())
     return [h_min, w_min, h_max, w_max]
 
 def regular_shape(mask, threshold=0.8):
