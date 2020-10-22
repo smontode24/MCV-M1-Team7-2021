@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
-from background_mask import get_bbox 
+from background_mask import get_bbox
+from debug_utils import *
 
 def estimate_text_mask(cropped_imgs, method):
     """ List of list of images. Each list contains one element for each detected painting in the image.
@@ -27,8 +28,20 @@ def crop_painting_for_text(imgs, bboxes):
     img_num = 0
     for bboxes_painting in bboxes:
         painting_boxes = []
-        for bbox in bboxes_painting:
-            painting_boxes.append(imgs[img_num][bbox[0]:bbox[2], bbox[1]:bbox[3]])
+        # TODO: Fix in QSD1
+        # BBOX = 0 == INT >> NOT SUSCRIPTABLE
+        # Error raised:
+        # TypeError: 'int' object is not subscriptable
+        try:
+            for bbox in bboxes_painting:
+                if isDebug():
+                    print("Range X: ", bbox[0], ":", bbox[2])
+                    print("Range Y: ", bbox[1], ":", bbox[3])
+                print("Painting_boxes before: ", painting_boxes)
+                painting_boxes.append(imgs[img_num][bbox[0]:bbox[2], bbox[1]:bbox[3]])
+                print("Painting_boxes after: ", painting_boxes)
+        except TypeError:
+            print("OOOPS, This has gone too far");
         img_num += 1
         rectangular_crops.append(painting_boxes)
     return rectangular_crops

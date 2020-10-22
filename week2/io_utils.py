@@ -47,7 +47,7 @@ def load_query_set(db_path):
     """ Load query set db and annotations from the db_path folder. 
         Returns= [list of images, list of label correspondences in the database, list of masks (to remove background), list of text bounding boxes] """ 
     img_list = load_images(db_path)
-    masks_list = mask_imgs_to_single_channel(load_images(db_path, "jpg"))
+    masks_list = mask_imgs_to_single_channel(load_images(db_path, "png"))
     labels = load_gt_annotations(os.path.join(db_path, QUERY_SET_ANN_PATH))
     text_labels = load_pkl(os.path.join(db_path, TEXT_BOXES_PATH))
     return img_list, labels, masks_list, text_labels
