@@ -37,9 +37,10 @@ def crop_painting_for_text(imgs, bboxes):
                 if isDebug():
                     print("Range X: ", bbox[0], ":", bbox[2])
                     print("Range Y: ", bbox[1], ":", bbox[3])
-                print("Painting_boxes before: ", painting_boxes)
+                    print("Painting_boxes before: ", painting_boxes)
                 painting_boxes.append(imgs[img_num][bbox[0]:bbox[2], bbox[1]:bbox[3]])
-                print("Painting_boxes after: ", painting_boxes)
+                if isDebug():
+                    print("Painting_boxes after: ", painting_boxes)
         except TypeError:
             print("OOOPS, This has gone too far");
         img_num += 1

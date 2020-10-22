@@ -65,7 +65,11 @@ def match_paintings(args):
     qs_imgs, qs_gts, qs_mask_list, qs_text_bboxes = load_query_set(path.join(args.ds_path, args.qs_path))
 
     if isDebug():
-        print("Time to load DB and query set:", time()-t0,"s")
+        print("Time to load DB and query set:", time()-t0, "s")
+        print("Size of qs_imgs:         ", len(qs_imgs))
+        print("Size of qs_gts :         ", len(qs_gts))
+        print("Size of qs_mask_list:    ", len(qs_mask_list))
+        print("Size of qs_text_bboxes:  ", len(qs_text_bboxes))
         t0 = time()
 
     # Obtain painting region from images
@@ -73,8 +77,10 @@ def match_paintings(args):
         # Obtain masks for the paintings
         masked_regions = bg_mask(qs_imgs, args.masking_method)
     else:
+        print("DEBUGGING")
         # Convert list of images into list of list of images (as without masking there will be a single painting, 
         # we just have to add a list structure with one image)
+        # TODO: Matrix of 1 (All white) of the size the image. (but it's bool)
         masked_regions = [[[np.ones((image.shape[0], image.shape[1])).astype(bool)] for image in qs_imgs], \
                           [[0, 0, image.shape[0], image.shape[1]] for image in qs_imgs]]
 
@@ -101,7 +107,10 @@ def match_paintings(args):
     # Evalute mIoU
     if qs_text_bboxes != None:
         mIoU = text_mIoU(text_regions[1], qs_text_bboxes)
-        print("Mean IoU text mask:", mIoU) 
+        if np.isnan(mIoU):  # Check if do I have some results or not
+            print("Hey, I shouldn't be here: what is the sign used for empty texts??")
+        else:               # show the text found
+            print("Mean IoU text mask:", mIoU)
 
     # Evaluate painting mask
     if len(qs_mask_list) > 0 and args.masking:

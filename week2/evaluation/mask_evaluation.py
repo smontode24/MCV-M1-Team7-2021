@@ -201,17 +201,24 @@ def mask_metrics(mask_predictions, mask_gts):
     return (pre, rec, acc, f1)
 
 def text_mIoU(predictions, gts):
-    """ Compute mIoU for predicted text boxes """
-    predictions = np.array(predictions)
-    predictions = predictions.reshape(predictions.shape[0]*predictions.shape[1], 4)
+    try:
+        """ Compute mIoU for predicted text boxes """
+        predictions = np.array(predictions)
+        predictions = predictions.reshape(predictions.shape[0]*predictions.shape[1], 4)
 
-    gts = np.array(gts)
-    gts = gts.reshape(gts.shape[0]*gts.shape[1], 4)
+        gts = np.array(gts)
+        gts = gts.reshape(gts.shape[0]*gts.shape[1], 4)
+    except IndexError:
+        print("It seems that I've passed the right exit....")
     return mIoU(predictions, gts)
     
 def mIoU(predictions, gts):
     """ Predictions """
-    return np.array([bb_intersection_over_union(prediction, gt) for prediction, gt in zip(predictions, gts)]).mean()
+    try:
+        output = np.array([bb_intersection_over_union(prediction, gt) for prediction, gt in zip(predictions, gts)]).mean()
+    except RuntimeWarning:
+        print("If I have nothing, it would be hard to make the mean....")
+    return output
 
 def bb_intersection_over_union(boxA, boxB):
 	# determine the (x, y)-coordinates of the intersection rectangle
