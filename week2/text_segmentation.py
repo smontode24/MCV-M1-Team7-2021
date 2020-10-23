@@ -541,7 +541,7 @@ def test(image):
     return [2,3]
 
 ############
-import numpy as np
+""" import numpy as np
 import imutils
 import cv2
 from sklearn.cluster import DBSCAN
@@ -781,7 +781,7 @@ def compute_text_mask(img, method='difference'):
         tlx, tly, brx, bry = box
         mask[tly:bry, tlx:brx] = 0
 
-    return mask
+    return mask """
 
 
 #
