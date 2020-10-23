@@ -4,6 +4,7 @@ from metrics import *
 import scipy.stats as stats
 from debug_utils import *
 from evaluation.mask_evaluation import bb_intersection_over_union
+from tqdm import tqdm
 
 def bg_mask(query_imgs, method): 
     """ Obtain a mask for each image in the list of images query_img. The method will be determined by the passed method argument.
@@ -18,7 +19,7 @@ def bg_mask(query_imgs, method):
     segmentation_method = get_method(method)
 
     results_segmentation, results_bboxes = [], []
-    for img in query_imgs:
+    for img in tqdm(query_imgs):
         segm, bbox = segmentation_method(img)
         results_segmentation.append(segm)
         results_bboxes.append(bbox)

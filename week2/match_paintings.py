@@ -76,7 +76,7 @@ def match_paintings(args):
         # Convert list of images into list of list of images (as without masking there will be a single painting, 
         # we just have to add a list structure with one image)
         masked_regions = [[[np.ones((image.shape[0], image.shape[1])).astype(bool)] for image in qs_imgs], \
-                          [[0, 0, image.shape[0], image.shape[1]] for image in qs_imgs]]
+                          [[[0, 0, image.shape[0], image.shape[1]]] for image in qs_imgs]]
 
     if isDebug():
         print("Extracted masks in:", time()-t0,"s")

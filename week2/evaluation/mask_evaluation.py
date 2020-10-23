@@ -202,11 +202,6 @@ def mask_metrics(mask_predictions, mask_gts):
 
 def text_mIoU(predictions, gts):
     """ Compute mIoU for predicted text boxes """
-    predictions = np.array(predictions)
-    predictions = predictions.reshape(predictions.shape[0]*predictions.shape[1], 4)
-
-    gts = np.array(gts)
-    gts = gts.reshape(gts.shape[0]*gts.shape[1], 4)
     return mIoU(predictions, gts)
     
 def mIoU(predictions, gts):
