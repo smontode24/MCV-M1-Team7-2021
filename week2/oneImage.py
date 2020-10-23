@@ -12,6 +12,7 @@ from io_utils import *
 from debug_utils import *
 from scipy import ndimage
 import numpy as np
+from matplotlib import pyplot as plt
 
 
 # RETURN: Given a relative path, it return it's absolute
@@ -42,6 +43,7 @@ def rgb2gray2(img):
 def gradientX (img):
     return cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=7)
 
+# RETURN: An image with its gradient in Y dimension
 def gradientY (img):
     return cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=7)
 
@@ -140,8 +142,25 @@ if __name__ == "__main__":
     # Get square root of sum of squares
     cv_sobel_m2_bw = np.hypot(cv_gradX_m2_bw, cv_gradY_m2_bw)
 
-    awesomeImage = cv_sobel_2_bw
+    diff0 = cv_sobel_0_bw-sobel_0_bw
+    diff1 = cv_sobel_1_bw-sobel_1_bw
+    diff2 = cv_sobel_2_bw-sobel_2_bw
 
+    gradX_sobel = gradientX(cv_sobel_2_bw)
+    gradY_sobel = gradientY(cv_sobel_2_bw)
 
+    sum_of_grad = gradX_sobel+gradY_sobel
+    min_of_grad = gradX_sobel-gradY_sobel
+    # as the ndArray have values > 0
+    # NORMALIZE
+    var1 = np.clip(sum_of_grad, 0, 255)
+    data_u8= var1.astype('uint8')
+    unique = np.unique(data_u8)
+    plt.hist(data_u8.ravel(), 256, [0, 256]);
+    plt.show()
+
+    sum_of_grad_norm = (255*(sum_of_grad - np.min(sum_of_grad))/np.ptp(sum_of_grad)).astype(int)
+    # min_of_grad_norm = (255 * (min_of_grad - np.min(min_of_grad)) / np.ptp(min_of_grad)).astype(uint_8)
+    #sum_of_grad_200 = normalized_array<200;
 
     print("hey, stop!")
