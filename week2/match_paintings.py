@@ -24,8 +24,12 @@ def parse_input_args():
                         help="query set folder name")
     parser.add_argument("--masking", default=1, type=int,
                         help="apply masking to paintings to remove background (0 no, 1 yes)")
+    parser.add_argument("--text_removal", default=1, type=int,
+                        help="apply masking to paintings to remove background (0 no, 1 yes)")
     parser.add_argument("--output_pkl", type=str,
                         help="output file to write pkl file with results")
+    parser.add_argument("--opkl_text", type=str,
+                        help="output file to write pkl file with text detections")
     parser.add_argument("--output_mask", type=str,
                         help="output folder to save predicted masks")
     parser.add_argument("--matching_measure", type=str, default="l1_dist",
@@ -61,7 +65,7 @@ def match_paintings(args):
         t0 = time()
     
     # Load DB
-    #db_imgs, db_annotations = load_db(path.join(args.ds_path, args.db_path))
+    db_imgs, db_annotations = load_db(path.join(args.ds_path, args.db_path))
     qs_imgs, qs_gts, qs_mask_list, qs_text_bboxes = load_query_set(path.join(args.ds_path, args.qs_path))
 
     if isDebug():
@@ -82,25 +86,33 @@ def match_paintings(args):
         # we just have to add a list structure with one image)
         # TODO: Matrix of 1 (All white) of the size the image. (but it's bool)
         masked_regions = [[[np.ones((image.shape[0], image.shape[1])).astype(bool)] for image in qs_imgs], \
-                          [[[0, 0, image.shape[0], image.shape[1]]] for image in qs_imgs]]
+                          [[[0, 0, image.shape[0], image.shape[1]]] for image in qs_imgs], \
+                          [[np.ones((image.shape[0], image.shape[1])).astype(bool)] for image in qs_imgs]]
 
     if isDebug():
         print("Extracted masks in:", time()-t0,"s")
 
-    # Crop paintings rectangularly to later extract text
-    cropped_qs_imgs = crop_painting_for_text(qs_imgs, masked_regions[1])
+    if args.text_removal:
+        # Crop paintings rectangularly to later extract text
+        cropped_qs_imgs = crop_painting_for_text(qs_imgs, masked_regions[1])
 
-    # Compute for each painting its text segmentation
-    text_regions = estimate_text_mask(cropped_qs_imgs, args.text_method)
-
-    # Apply the mask on images. This is done after text segmentation because the text segmentation needs 
-    # rectangular crops
-    #if args.masking:
-    #    qs_imgs = apply_mask(qs_imgs, masked_regions, args.masking_method)
+        # Compute for each painting its text segmentation
+        text_regions = estimate_text_mask(cropped_qs_imgs, masked_regions[1], args.text_method, qs_imgs)
 
     # Perform painting matching
     t0 = time()
-    #assignments = painting_matching(qs_imgs, db_imgs, args.retrieval_method, metric=get_measure(args.matching_measure))
+
+    # Clear bg and text
+    if args.text_removal and args.masking:
+        bg_reord = sort_annotations_and_predictions(qs_gts, qs_text_bboxes, text_regions[1], masked_regions=masked_regions[2])
+        qs_gts, qs_text_bboxes, text_regions[1], masked_regions[2] = bg_reord
+        qs_imgs_refined = removal_bg_text(qs_imgs, masked_regions[2], masked_regions[1], text_regions[1], args.retrieval_method)
+    else:
+        qs_gts, qs_text_bboxes, text_regions[1] = sort_annotations_and_predictions(qs_gts, qs_text_bboxes, text_regions[1])
+        qs_imgs_refined = removal_text(qs_imgs, text_regions[1], args.retrieval_method)
+
+    assignments = painting_matching(qs_imgs_refined, db_imgs, args.retrieval_method, metric=get_measure(args.matching_measure))
+
     print("Matching in", time()-t0,"s")
 
     # If query set annotations are available, evaluate
@@ -130,23 +142,32 @@ def match_paintings(args):
         print("F1-measure", f1)
 
     # Evaluate painting matching
-    """ if type(qs_gts) == np.ndarray:
-        qs_gts = qs_gts.reshape(len(qs_gts), 1)
+    if type(qs_gts) == list:
+        qs_gts = reformat_qs_gts(qs_gts)
+        qs_gts = np.array(qs_gts).reshape(-1, 1)
+        qs_gts = np.concatenate([[q for q in qs_gt[0]] for qs_gt in qs_gts]).reshape(-1, 1)
         map_at_1 = mapk(qs_gts, assignments, k=1)
         map_at_5 = mapk(qs_gts, assignments, k=5)
 
         print("MAP@1:", map_at_1)
         print("MAP@5:", map_at_5)
-    """
+   
     print("Done")
 
     # Save to pkl file if necessary
     if args.output_pkl:
-        to_pkl(assignments, args.output_pkl, k=10)
+        # Save assignments
+        assignments = reformat_assignments_to_save(assignments, text_regions[1])
+        assignments = np.array(assignments)[:, :10].tolist()
+        to_pkl(assignments, args.output_pkl)
+
+    # Save text bounding boxes
+    if args.opkl_text:
+        to_pkl(text_regions[1], args.opkl_text)
 
     # Save mask images if necessary
     if args.output_mask:
-        save_masks(masked_regions, args.output_mask)
+        save_masks(masked_regions[0], args.output_mask)
 
 if __name__ == "__main__":
     parsed_args = parse_input_args()

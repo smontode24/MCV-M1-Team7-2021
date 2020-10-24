@@ -5,7 +5,7 @@ from debug_utils import *
 from tqdm import tqdm
 from collections import defaultdict
 
-def estimate_text_mask(cropped_imgs, method):
+def estimate_text_mask(cropped_imgs, painting_bboxes, method, qs_images):
     """ List of list of images. Each list contains one element for each detected painting in the image.
         params:
             imgs: [[painting1, painting2], [painting1], [painting1, painting2], ...]
@@ -15,27 +15,44 @@ def estimate_text_mask(cropped_imgs, method):
     text_segm = get_method(method)
     cropped_text_mask = []
     bboxes_mask = []
+    bbox_show = []
 
     print("Extracting text boxes...")
-    for paintings in tqdm(cropped_imgs):
-        for painting in paintings:
+    for paintings, pantings_bboxes in tqdm(zip(cropped_imgs,painting_bboxes)):
+        bboxes_paintings = []
+        cropped_text_mask_paintings = []
+        bbox_show_paintings = []
+
+        for painting, painting_bbox in zip(paintings, pantings_bboxes):
             result = text_segm(painting)
-            cropped_text_mask.append(result[0].astype(bool))
-            bboxes_mask.append(result[1])
+            cropped_text_mask_paintings.append(result[0]) #.astype(bool))
+            bbox_show_paintings.append(result[1])
+
+            bbox_relative = result[1]
+            bbox_relative = [bbox_relative[0]+painting_bbox[1], bbox_relative[1]+painting_bbox[0], \
+                             bbox_relative[2]+painting_bbox[1], bbox_relative[3]+painting_bbox[0]]
+            bboxes_paintings.append(bbox_relative)
+
+        cropped_text_mask.append(cropped_text_mask_paintings)
+        bboxes_mask.append(bboxes_paintings)
+        bbox_show.append(bbox_show_paintings)
 
     if isDebug():
         # Show images
         i = 0
         for paintings in cropped_imgs:
+            j = 0
             for painting in paintings:
-                bbox = bboxes_mask[i]
+                bbox = bbox_show[i][j]
                 painting_copy = painting.copy()
                 painting_copy = cv2.rectangle(painting_copy, (bbox[0],bbox[1]), (bbox[2],bbox[3]), (255,0 ,0), 10)
                 cv2.imshow("result text segm", cv2.resize(painting_copy,(512,512)))
                 cv2.waitKey(0)
-                i += 1
+                
+                j += 1
+            i += 1
 
-    return cropped_text_mask, bboxes_mask
+    return [cropped_text_mask, bboxes_mask]
 
 def crop_painting_for_text(imgs, bboxes):
     """ Rectangular paintings for images """
@@ -271,11 +288,12 @@ def morphological_method3(img):
     copy_th.sort()
     thresh = tophat > copy_th[int(0.95*len(copy_th))] #0.7*tophat.max() #cv2.threshold(tophat, 0.5*tophat.max(), 255, cv2.THRESH_BINARY)[1]
 
-    tophat = closing - opening
-
+    cv2.imshow("t1", cv2.resize(tophat*255,(512,512)))
+    cv2.imshow("t2", cv2.resize(thresh.astype(np.uint8)*255,(512,512)))
+    
     current_threshold = 0.8
 
-    thresh = tophat > 0.7*tophat.max() 
+    #thresh = tophat > 0.7*tophat.max() 
     #text_mask = cv2.morphologyEx(thresh.astype(np.uint8), cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (int(img.shape[0]*0.2), 5)))
     #text_mask = text_mask*255
 
@@ -323,8 +341,8 @@ def morphological_method4(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     s1,s2 = img.shape[0]//20, img.shape[1]//20
 
-    closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (s1, s2)), borderValue=0)
-    opening = cv2.morphologyEx(img, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (s1, s2)), borderValue=0)
+    closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (s1, s2)), borderType=cv2.BORDER_REPLICATE)
+    opening = cv2.morphologyEx(img, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (s1, s2)), borderType=cv2.BORDER_REPLICATE)
     tophat = closing - opening
     #blur = cv2.GaussianBlur(tophat, (7, 7), 0)
 
@@ -332,29 +350,48 @@ def morphological_method4(img):
     tophat = tophat[m1:img.shape[0]-m1, m2:img.shape[1]-m2]
 
     #thresh = tophat > 0.5*tophat.max()
-    alpha = 0.7
+    thr = 0.85
     copy_th = tophat.copy().reshape(-1)
     copy_th.sort()
-    thresh = tophat > copy_th[int(0.99*len(copy_th))] #0.7*tophat.max() #cv2.threshold(tophat, 0.5*tophat.max(), 255, cv2.THRESH_BINARY)[1]
+    thresh = tophat > thr*tophat.max() #copy_th[int(0.95*len(copy_th))] #0.7*tophat.max() #cv2.threshold(tophat, 0.5*tophat.max(), 255, cv2.THRESH_BINARY)[1]
+    thresh = cv2.morphologyEx(thresh.astype(np.uint8), cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 7)), borderValue=0)
+
+    #cv2.imshow("t1", cv2.resize(tophat,(512,512)))
 
     #m1, m2 = int(0.02*thresh.shape[0]), int(0.02*thresh.shape[1])
     #thresh[m1:thresh.shape[0]-m1, m2:thresh.shape[1]-m2] = False
 
     contours, _ = cv2.findContours(thresh.astype(np.uint8),  cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
-    """ cv2.imshow("prefilter", cv2.resize(thresh.astype(np.uint8)*255, (512,512)))
+    #cv2.imshow("prefilter", cv2.resize(thresh.astype(np.uint8)*255, (512,512)))
+    #cv2.imshow("prehat", cv2.resize(tophat,(512,512)))
     # From all the contours found, pick only the ones with rectangular shape and large area
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
     
-        dev1 = (closing[y:y+h,x:x+w]).std() < 40
-        dev2 = (opening[y:y+h,x:x+w]).std() < 40
-        print((closing[y:y+h,x:x+w]).std(), (opening[y:y+h,x:x+w]).std())
-        if not dev1 and not dev2:
-            print("a")
-            thresh[y:y+h,x:x+w] = False
+        dev1 = (closing[y:y+h,x:x+w]).std() < 20
+        dev2 = (opening[y:y+h,x:x+w]).std() < 20
+        #print((closing[y:y+h,x:x+w]).std(), (opening[y:y+h,x:x+w]).std())
+        area = thresh[y:y+h, x:x+w].astype(np.uint8).sum()/(h*w)
+        if area < 0.2: #or (not dev1 and not dev2):
+            #print("a")
+            tophat[y:y+h,x:x+w] = 0
+        
+    th_m1,th_m2 = int(0.025*tophat.shape[0]), int(0.1*tophat.shape[1])
+    #tophat[:m1, :] = 0
+    #tophat[tophat.shape[0]-m1:, :] = 0
+    tophat[:, :th_m2] = 0
+    tophat[:, tophat.shape[1]-th_m2:] = 0
 
-    """
-    cv2.imshow("postfilter", cv2.resize(thresh.astype(np.uint8)*255, (512,512)))
+    copy_th = tophat.copy().reshape(-1)
+    copy_th.sort()
+    thresh = tophat > thr*tophat.max() #copy_th[int(0.99*len(copy_th))] #0.7*tophat.max() #cv2.threshold(tophat, 0.5*tophat.max(), 255, cv2.THRESH_BINARY)[1]
+    thresh = cv2.morphologyEx(thresh.astype(np.uint8)*255, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1,5)))
+    thresh = cv2.morphologyEx(thresh.astype(np.uint8), cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 1)), borderValue=0)
+    #ret, thresh = cv2.threshold(tophat, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)  
+
+    #cv2.imshow("post_hat", cv2.resize(tophat, (512,512)))
+    #
+    #cv2.imshow("postfilter", cv2.resize(thresh, (512,512)))
     #while thresh.astype(np.uint8).sum() > 
 
     #filled = fill_holes(thresh)
@@ -366,19 +403,141 @@ def morphological_method4(img):
 
     #dilation = cv2.morphologyEx(thresh.astype(np.uint8), cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (int(img.shape[0]*0.4), 1)), borderValue=0)
     s_v = int(img.shape[1]*0.02)
-    padding = 250
-    dilation = cv2.copyMakeBorder(src=thresh.astype(np.uint8)*255, top=padding, bottom=padding, left=padding, right=padding, borderType=cv2.BORDER_CONSTANT, value=0) 
-    dilation = cv2.morphologyEx(dilation, cv2.MORPH_DILATE, cv2.getStructuringElement(cv2.MORPH_RECT, (int(img.shape[0]*0.4), 1)), borderValue=0)
-    cv2.imshow("pro0", cv2.resize(dilation.astype(np.uint8), (512,512)))
-    dilation = cv2.morphologyEx(dilation, cv2.MORPH_ERODE, cv2.getStructuringElement(cv2.MORPH_RECT, (int(img.shape[0]*0.4), 1)), borderValue=0)
+    padding = 250 # .astype(np.uint8)*255
+    dilation = cv2.copyMakeBorder(src=thresh, top=padding, bottom=padding, left=padding, right=padding, borderType=cv2.BORDER_CONSTANT, value=0) 
+    dilation = cv2.morphologyEx(dilation, cv2.MORPH_DILATE, cv2.getStructuringElement(cv2.MORPH_RECT, (int(img.shape[1]*0.6), 11)), borderValue=0)
+    #cv2.imshow("pro0", cv2.resize(dilation.astype(np.uint8), (512,512)))
+    dilation = cv2.morphologyEx(dilation, cv2.MORPH_ERODE, cv2.getStructuringElement(cv2.MORPH_RECT, (int(img.shape[1]*0.6), 7)), borderValue=0)
+    #cv2.imshow("pro02", cv2.resize(dilation.astype(np.uint8), (512,512)))
+
+    dilation = cv2.morphologyEx(dilation, cv2.MORPH_DILATE, cv2.getStructuringElement(cv2.MORPH_RECT, (int(img.shape[1]*0.6), 7)), borderValue=0)
+    dilation = cv2.morphologyEx(dilation, cv2.MORPH_ERODE, cv2.getStructuringElement(cv2.MORPH_RECT, (int(img.shape[1]*0.6), 7)), borderValue=0)
     
     dilation = dilation[padding:dilation.shape[0]-padding, padding:dilation.shape[1]-padding]
-    cv2.imshow("pro1", cv2.resize(dilation.astype(np.uint8), (512,512)))
+    #cv2.imshow("pro1", cv2.resize(dilation.astype(np.uint8), (512,512)))
     
     dilation = cv2.morphologyEx(dilation, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (s_v*2, 1)), borderValue=0)
     #dilation = cv2.morphologyEx(dilation, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (, 1)))
     s_v = int(img.shape[1]*0.01)
     text_mask = cv2.morphologyEx(dilation, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, s_v)))
+    #cv2.imshow("pro2", cv2.resize(text_mask.astype(np.uint8), (512,512)))
+
+    # Finding contours of the white areas of the images (high possibility of text)
+    contours, _ = cv2.findContours(text_mask,  cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
+    
+    # Initialize parameters
+    largest_area, second_largest_area, x_box_1, y_box_1, w_box_1, h_box_1, x_box_2, y_box_2, w_box_2, h_box_2 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    max_score1, max_score2 = -1, -1
+    image_width = text_mask.shape[0]
+    #cv2.imshow("pretakeboxes", cv2.resize(text_mask.astype(np.uint8), (512,512)))
+
+    # From all the contours found, pick only the ones with rectangular shape and large area
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        
+        x0,y0,x1,y1 = x, y, x+w, y+h 
+        #area = cv2.contourArea(cnt)
+        # ((w/h > 2) & (w/h < 12) & (w > (0.1 * image_width))) and
+        score = compute_score_mask_text(text_mask, [x0,y0,x1,y1])
+
+        if score > max_score2 and w > 0.1*text_mask.shape[1] and (w/h > 1.5) and (w/h < 40):
+
+            if score > max_score1:
+                x_box_2, y_box_2, w_box_2, h_box_2 = x_box_1, y_box_1, w_box_1, h_box_1
+                x_box_1, y_box_1, w_box_1, h_box_1 = x, y, w, h
+                max_score2 = max_score1
+                max_score1 = score
+
+            else:
+                x_box_2, y_box_2, w_box_2, h_box_2 = x, y, w, h
+                max_score2 = score
+
+    a = np.zeros((img.shape[0],img.shape[1])).astype(np.uint8)
+    w_e, h_e = int((w_box_1)*0.01), int((h_box_1)*0.4)
+
+    pos = [m1+x_box_1-w_e, m2+y_box_1-h_e, x_box_1 + m1 + w_box_1 + w_e, m2 + y_box_1 + h_box_1+h_e]
+    a[max(pos[1],0):min(pos[3], a.shape[0]), max(pos[0],0):min(pos[2], a.shape[1])] = 255
+    #cv2.imshow("img", cv2.resize(img,(512,512)))
+    #cv2.imshow("a", cv2.resize(a,(512,512)))
+    #cv2.waitKey(0)
+    return a, pos
+
+
+
+def detect_corners(mask):
+    """
+    Finds four points corresponding to rectangle corners
+
+    :param mask: (ndarray) binary image
+    :return: (int) points from corners
+    """
+
+    width = mask.shape[1]
+    height = mask.shape[0]
+    coords = np.argwhere(np.ones([height, width]))
+    coords_x = coords[:, 1]
+    coords_y = coords[:, 0]
+
+    coords_x_filtered = np.extract(mask, coords_x)
+    coords_y_filtered = np.extract(mask, coords_y)
+    max_br = np.argmax(coords_x_filtered + coords_y_filtered)
+    max_tr = np.argmax(coords_x_filtered - coords_y_filtered)
+    max_tl = np.argmax(-coords_x_filtered - coords_y_filtered)
+    max_bl = np.argmax(-coords_x_filtered + coords_y_filtered)
+
+    tl_x, tl_y = int(coords_x_filtered[max_tl]), int(coords_y_filtered[max_tl])
+    tr_x, tr_y = int(coords_x_filtered[max_tr]), int(coords_y_filtered[max_tr])
+    bl_x, bl_y = int(coords_x_filtered[max_bl]), int(coords_y_filtered[max_bl])
+    br_x, br_y = int(coords_x_filtered[max_br]), int(coords_y_filtered[max_br])
+
+    return tl_x, tl_y, bl_x, bl_y, br_x, br_y, tr_x, tr_y
+
+
+from scipy import ndimage
+def gradient_based(img):
+    s1,s2 = img.shape[0]//20, img.shape[1]//20
+
+    gradX_0_bw = ndimage.sobel(img, axis=0, mode='constant')
+    gradY_0_bw = ndimage.sobel(img, axis=1, mode='constant')
+    # Get square root of sum of squares
+    sobel_0_bw = np.hypot(gradX_0_bw, gradY_0_bw)
+    sobel_0_bw = sobel_0_bw
+    tophat = sobel_0_bw
+    tophat = ((tophat-tophat.min())/(tophat.max()-tophat.min())*255).astype(np.uint8)
+    tophat = cv2.cvtColor(tophat, cv2.COLOR_BGR2GRAY)
+    print(tophat.min(), tophat.max())
+    sobelX_0_bw = (np.abs(gradX_0_bw)).astype(np.uint8)
+    sobelY_0_bw = (np.abs(gradY_0_bw**2)).astype(np.uint8)
+    cv2.imshow("sobelx", cv2.resize(sobelX_0_bw, (512,512)))
+    cv2.imshow("sobely", cv2.resize(sobelY_0_bw, (512,512)))
+    cv2.imshow("tophat", cv2.resize(tophat.astype(np.uint8), (512,512)))
+    
+    alpha = 0.7
+    copy_th = tophat.copy().reshape(-1)
+    copy_th.sort()
+    thresh = tophat <= copy_th[int(0.02*len(copy_th))] 
+    cv2.imshow("thresh", cv2.resize(thresh.astype(np.uint8)*255, (512,512)))
+
+    #dilation = cv2.morphologyEx(thresh.astype(np.uint8), cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (int(img.shape[0]*0.4), 1)), borderValue=0)
+    s_v = int(img.shape[1]*0.02)
+    padding = 250
+    dilation = cv2.copyMakeBorder(src=thresh.astype(np.uint8)*255, top=padding, bottom=padding, left=padding, right=padding, borderType=cv2.BORDER_CONSTANT, value=0) 
+    
+    sm1, sm2 = max(3, int(img.shape[0]*0.001)), max(3, int(img.shape[1]*0.001))
+    dilation = cv2.morphologyEx(dilation, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (sm1, 1)), borderValue=0)
+    dilation = cv2.morphologyEx(dilation, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (1, sm2)), borderValue=0)
+    
+    cv2.imshow("pro0", cv2.resize(dilation.astype(np.uint8), (512,512)))
+    dilation = cv2.morphologyEx(dilation, cv2.MORPH_DILATE, cv2.getStructuringElement(cv2.MORPH_RECT, (int(img.shape[0]*0.01), int(img.shape[1]*0.01))), borderValue=0)
+    dilation = cv2.morphologyEx(dilation, cv2.MORPH_ERODE, cv2.getStructuringElement(cv2.MORPH_RECT, (int(img.shape[0]*0.01), int(img.shape[1]*0.01))), borderValue=0)
+    
+    dilation = dilation[padding:dilation.shape[0]-padding, padding:dilation.shape[1]-padding]
+    cv2.imshow("pro1", cv2.resize(dilation.astype(np.uint8), (512,512)))
+    text_mask = dilation
+    #dilation = cv2.morphologyEx(dilation, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (s_v*2, 1)), borderValue=0)
+    #dilation = cv2.morphologyEx(dilation, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (, 1)))
+    s_v = int(img.shape[1]*0.01)
+    #text_mask = cv2.morphologyEx(dilation, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, s_v)))
     cv2.imshow("pro2", cv2.resize(text_mask.astype(np.uint8), (512,512)))
 
     # Finding contours of the white areas of the images (high possibility of text)
@@ -412,9 +571,9 @@ def morphological_method4(img):
                 max_score2 = score
 
     a = np.zeros((img.shape[0],img.shape[1])).astype(np.uint8)
-    w_e, h_e = int((w_box_1)*0.05), int((h_box_1)*0.5)
+    w_e, h_e = int((w_box_1)*0.05), int((h_box_1)*0.4)
 
-    pos = [m1+x_box_1, m2+y_box_1-h_e, x_box_1 + m1 + w_box_1, m2 + y_box_1 + h_box_1+h_e]
+    pos = [x_box_1, y_box_1-h_e, x_box_1 + w_box_1, y_box_1 + h_box_1+h_e]
     a[max(pos[1],0):min(pos[3], a.shape[0]), max(pos[0],0):min(pos[2], a.shape[1])] = 255
     cv2.imshow("img", cv2.resize(img,(512,512)))
     cv2.imshow("a", cv2.resize(a,(512,512)))
@@ -486,305 +645,8 @@ def compute_score_mask_text(mask_box, bbox):
     sum_pixels = (mask_box_part == 255).astype(np.uint8).sum()
     md = max(mask_box.shape[0], mask_box.shape[1])
     score = (1-abs(0.3-(sum_pixels/(mask_box.shape[0]*mask_box.shape[1]))))+\
-            2*((mask_box.shape[0]*mask_box.shape[1])/(md*md))
+            ((mask_box.shape[0]*mask_box.shape[1])/(md*md))
     return score
-
-def test(image):
-    
-    saturation_threshold = 5
-
-    # Color image segmentation to create binary image (255 white: high possibility of text; 0 black: no text)
-    im_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    _, s, _ = cv2.split(im_hsv)
-
-    image_grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
-    image_grey[s < saturation_threshold] = 255
-    image_grey[image_grey != 255] = 0
-
-    # Cleaning image using morphological opening filter
-    opening_kernel = np.ones((15, 10),np.uint8)
-    text_mask = cv2.morphologyEx(image_grey, cv2.MORPH_OPEN, opening_kernel, iterations=1)
-
-
-    #------------------------------   FINDING AND CHOOSING CONTOURS OF THE BINARY MASK   ---------------------------------------
-
-    # Finding contours of the white areas of the images (high possibility of text)
-    contours, _ = cv2.findContours(text_mask,  cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
-
-    # Initialize parameters
-    largest_area, second_largest_area, x_box_1, y_box_1, w_box_1, h_box_1, x_box_2, y_box_2, w_box_2, h_box_2 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    image_width = text_mask.shape[0]
-
-    # From all the contours found, pick only the ones with rectangular shape and large area
-    for cnt in contours:
-        x, y, w, h = cv2.boundingRect(cnt)
-        area = cv2.contourArea(cnt)
-
-        if ((w/h > 2) & (w/h < 12) & (w > (0.1 * image_width)) & (area > second_largest_area)):
-
-            if area > largest_area:
-                x_box_2, y_box_2, w_box_2, h_box_2 = x_box_1, y_box_1, w_box_1, h_box_1
-                x_box_1, y_box_1, w_box_1, h_box_1 = x, y, w, h
-                second_largest_area = largest_area
-                largest_area = area
-
-            else:
-                x_box_2, y_box_2, w_box_2, h_box_2 = x, y, w, h
-                second_largest_area = area
-    
-    result_mask = np.zeros((image.shape[0], image.shape[1]))
-    result_mask[y_box_1:y_box_1+h_box_1, x_box_1:x_box_1+w_box_1] = 255
-    cv2.imshow("img", image)
-    cv2.imshow("res", result_mask)
-    cv2.waitKey(0)
-    return [2,3]
-
-############
-""" import numpy as np
-import imutils
-import cv2
-from sklearn.cluster import DBSCAN
-
-from matplotlib import pyplot as plt
-
-
-def imshow(img):
-    plt.figure()
-    plt.imshow(img)
-    plt.show()
-
-
-def draw_boxes(image, boxes, color=(0, 255, 0)):
-    for bbox in boxes:
-        x1, y1, x2, y2 = bbox
-        #print('({:.2f}, {:.2f}, {:.2f}, {:.2f})'.format(x1, y1, x2, y2))
-        cv2.rectangle(image, (x1, y1), (x2, y2), color, thickness=2)
-    return image
-
-
-def find_text_region():
-    with open("../w5_text_bbox_list.pkl", "rb") as fp:
-        # tlx, tly, brx, bry
-        bbox_gt = pickle.load(fp)
-
-    top_limit_vector = []
-    bottom_limit_vector = []
-    area_vector = []
-    for image in glob.glob('../data/w5_BBDD_random/*.jpg'):
-        im = cv2.imread(image)
-        index = int(os.path.split(image)[-1].split(".")[0].split("_")[1])
-        tlx, tly, brx, bry = bbox_gt[index]
-        H, W, _ = np.shape(im)
-        h = bry - tly
-        w = brx - tlx
-        area_vector.append((h * w) / (H * W))
-        if bry < H / 2:
-            top_limit_vector.append(bry / H)
-        else:
-            if tly / H > 1:
-                print(image)
-                print(bbox_gt[index])
-            bottom_limit_vector.append(tly / H)
-    top_limit = max(top_limit_vector)
-    bottom_limit = min(bottom_limit_vector)
-    print("Top and bottom limits", top_limit, bottom_limit)
-    print("Min and max areas", min(area_vector), max(area_vector))
-
-
-def fill_holes(mask):
-    im_floodfill = mask.astype(np.uint8).copy()
-    h, w = im_floodfill.shape[:2]
-    filling_mask = np.zeros((h + 2, w + 2), np.uint8)
-    cv2.floodFill(im_floodfill, filling_mask, (0, 0), 1)
-    return mask.astype(np.uint8) | cv2.bitwise_not(im_floodfill)
-
-
-def merge_boxes(boxes):
-    y = np.array([[(b[1] + b[3]) / 2, b[3] - b[1]] for b in boxes])
-    clt = DBSCAN(eps=22, min_samples=1, metric='l1').fit(y)
-    labels = clt.labels_
-
-    clusters = defaultdict(list)
-    for box, label in zip(boxes, labels):
-        if label != -1:
-            clusters[label].append(box)
-    clusters = clusters.values()
-
-    merged_boxes = []
-    areas = []
-    for clt in clusters:
-        num_pixel_estimation = 20
-        
-        positions = np.where(mask==255)
-        hs, ws = sorted(positions[0]), sorted(positions[1])
-        h_min, h_max = int(np.array(hs[:num_pixel_estimation]).mean()), int(np.array(hs[-num_pixel_estimation:]).mean())
-        w_min, w_max = int(np.array(ws[:num_pixel_estimation]).mean()), int(np.array(ws[-num_pixel_estimation:]).mean())
-        x, y, w, h = w_min, h_min, w_max-w_min, h_max-h_min #cv2.boundingRect(points=np.concatenate(clt).reshape(-1, 2))
-        merged_boxes.append((x, y, x + w, y + h))
-
-        area = np.sum([(b[2]-b[0])*(b[3]-b[1]) for b in clt])
-        areas.append(area)
-
-    return merged_boxes, areas
-
-
-def detect(img, method='difference', show=False):
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    im_h, im_w = img.shape[:2]
-
-    def tophat(img):
-        tophat = cv2.morphologyEx(img, cv2.MORPH_TOPHAT, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
-        blackhat = cv2.cv2.morphologyEx(img, cv2.MORPH_BLACKHAT, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
-
-        tophat = tophat if np.sum(tophat) > np.sum(blackhat) else blackhat
-        if show:
-            imshow(tophat)
-
-        thresh = cv2.threshold(tophat, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
-        if show:
-            imshow(thresh)
-
-        thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (15, 3)))
-        thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 3)))
-        return thresh
-
-    def difference(img):
-        closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 3)))
-        opening = cv2.morphologyEx(img, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
-        tophat = closing - opening
-        #blur = cv2.GaussianBlur(tophat, (7, 7), 0)
-
-        #thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
-        thresh = cv2.threshold(tophat, 0.5*tophat.max(), 255, cv2.THRESH_BINARY)[1]
-
-        #filled = fill_holes(thresh)
-        #thresh = cv2.threshold(thresh4,250,255,cv2.THRESH_BINARY)[1]
-        #imshow(thresh)
-
-        dilation = cv2.morphologyEx(thresh, cv2.MORPH_DILATE, cv2.getStructuringElement(cv2.MORPH_RECT, (11, 1)))
-        #expansion = cv2.morphologyEx(thresh4, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 3)))
-
-        if show:
-            imshow(closing)
-            imshow(opening)
-            imshow(tophat)
-            imshow(thresh)
-
-        return dilation
-
-    func = {
-        'tophat': tophat,
-        'difference': difference
-    }
-
-    # find contours
-    mask = func[method](img)
-    if show:
-        imshow(mask)
-
-    # detect boxes from contours
-    contours,_ = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)[-2:]
-    boxes, bad_boxes = [], []
-    for cnt in contours:
-        x, y, w, h = cv2.boundingRect(cnt)
-
-        image_area = im_h * im_w
-        area = cv2.contourArea(cnt)
-        rect_area = w * h
-        extent = area / rect_area
-
-        # filter boxes
-        cond1 = extent > 0.2
-        cond2 = h > 10
-        cond3 = (rect_area / image_area) <= 0.2935
-        cond4 = (w / h) > 1
-        cond5 = (y / im_h) >= 0.5719 or ((y + h) / im_h) <= 0.2974
-        #print(cond1, cond2, cond3, cond4, cond5)
-
-        if all([cond1, cond2, cond3, cond4, cond5]):
-            boxes.append((x, y, x + w, y + h))
-        else:
-            bad_boxes.append((x, y, x + w, y + h))
-    if show:
-        tmp = draw_boxes(cv2.cvtColor(img, cv2.COLOR_GRAY2RGB), bad_boxes, color=(255, 0, 0))
-        tmp = draw_boxes(tmp, boxes, color=(0, 255, 0))
-        imshow(tmp)
-
-    # merge boxes
-    if boxes:
-        merged_boxes, areas = merge_boxes(boxes)
-        if show:
-            imshow(draw_boxes(cv2.cvtColor(img, cv2.COLOR_GRAY2RGB), merged_boxes))
-
-        filtered_boxes = []
-        filtered_areas = []
-        for box, area in zip(merged_boxes, areas):
-            tlx, tly, brx, bry = box
-            h = bry-tly
-            w = brx-tlx
-            if 0.05 < h/w < 0.25:
-                filtered_boxes.append(box)
-                filtered_areas.append(area)
-        if filtered_boxes:
-            idx = np.argmax(filtered_areas)
-            boxes = [filtered_boxes[idx]]
-        else:
-            boxes = []
-
-    return boxes
-
-
-def correct_boxes(boxes, orig_h, orig_w, h, w):
-    w_ratio = orig_w / w
-    h_ratio = orig_h / h
-
-    corrected = []
-    for b in boxes:
-        tlx = int(np.floor(b[0] * w_ratio))
-        tly = int(np.floor(b[1] * h_ratio))
-        brx = int(np.ceil(b[2] * w_ratio))
-        bry = int(np.ceil(b[3] * h_ratio))
-        corrected.append((tlx, tly, brx, bry))
-
-    return corrected
-
-
-def filter_text_keypoints(img, keypoints):
-    resized = imutils.resize(img, width=512)
-    boxes = detect(resized)
-    boxes = correct_boxes(boxes, *img.shape[:2], *resized.shape[:2])
-
-    def inside(pt, box):
-        # point = (x, y)
-        # box = (tlx, tly, brx, bry)
-        return box[0] <= pt[0] <= box[2] and box[1] <= pt[1] <= box[3]
-
-    filtered = []
-    for kp in keypoints:
-        for box in boxes:
-            if inside(kp.pt, box):
-                break
-        else:
-            filtered.append(kp)
-
-    return filtered
-
-
-def compute_text_mask(img, method='difference'):
-    resized = imutils.resize(img, width=512)
-    boxes = detect(resized, method)
-    boxes = correct_boxes(boxes, *img.shape[:2], *resized.shape[:2])
-
-    mask = np.full(img.shape[:2], 255, dtype=np.uint8)
-    for box in boxes:
-        tlx, tly, brx, bry = box
-        mask[tly:bry, tlx:brx] = 0
-
-    return mask """
-
-
-#
 
 # Selection utils
 SATURATION_MASKING = "SM"
@@ -794,8 +656,7 @@ OPTIONS = [SATURATION_MASKING, MM, D]
 
 METHOD_MAPPING = {
     OPTIONS[0]: saturation_masking,
-    OPTIONS[1]: morphological_method4,
-    OPTIONS[2]: detect
+    OPTIONS[1]: bounding_boxes_detection #
 }
 
 def get_method(method):

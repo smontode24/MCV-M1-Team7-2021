@@ -26,8 +26,8 @@ def load_db(db_path):
 def load_gt_annotations(anno_path):
     """ Load annotations from path for query set. List of groundtruths [7, 2, 3, ..., 10] """
     annotations = load_pkl(anno_path)
-    if annotations != None:
-        annotations = np.array(annotations).reshape(-1)
+    """ if annotations != None:
+        annotations = np.array(annotations).reshape(-1) """
     return annotations
 
 def load_pkl(anno_path):
@@ -35,9 +35,12 @@ def load_pkl(anno_path):
     if os.path.exists(anno_path):
         fd = open(anno_path, "rb")
         annotations = pickle.load(fd)
+        tmp_anno = np.concatenate(annotations)
+        if len(tmp_anno.shape) == 1:
+            annotations = [[anno] for anno in annotations]
         return annotations
     else:
-        return None    
+        return None  
 
 def mask_imgs_to_single_channel(img_list):
     """ Convert 3 channel mask image to single channel. """
@@ -52,11 +55,11 @@ def load_query_set(db_path):
     text_labels = load_pkl(os.path.join(db_path, TEXT_BOXES_PATH))
     return img_list, labels, masks_list, text_labels
 
-def to_pkl(results, result_path, k=10):
+def to_pkl(results, result_path): 
     """ Write results to pkl file in result_path """
-    results_to_write = results[:, :10].tolist()
+    
     output = open(result_path, 'wb')
-    pickle.dump(results_to_write, output)
+    pickle.dump(results, output)
     output.close()
 
 def save_masks(results, result_folder):

@@ -2,6 +2,7 @@ import numpy as np
 from metrics import *
 import cv2
 from debug_utils import *
+from tqdm import tqdm
 
 def painting_matching(imgs, db_imgs, method_name, metric=js_div, splits=30, max_rank=10): 
     """ Obtain query images matches.
@@ -15,14 +16,18 @@ def painting_matching(imgs, db_imgs, method_name, metric=js_div, splits=30, max_
             Top k matches for each image of the query set in the database
     """
     matching_method = get_method(method_name)
+    tmp_img_format = []
+    for i in range(len(imgs)):
+        for j in range(len(imgs[i])):
+            tmp_img_format.append(imgs[i][j])
 
     db_img_splits = [i*len(db_imgs)//splits for i in range(splits-1)]
     
     scores = []
-    query_descriptors = np.array([matching_method(img) for img in imgs])
+    query_descriptors = np.array([matching_method(img) for img in tmp_img_format])
     print("Starting db extraction + matching")
     if splits > 1:
-        for split in range(splits-2):
+        for split in tqdm(range(splits-2)):
             db_descriptors = np.array([matching_method(db_img) for db_img in db_imgs[db_img_splits[split]:db_img_splits[split+1]]])
             scores.append(metric(query_descriptors, db_descriptors))
         

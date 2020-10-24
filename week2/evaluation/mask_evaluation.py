@@ -201,24 +201,78 @@ def mask_metrics(mask_predictions, mask_gts):
     return (pre, rec, acc, f1)
 
 def text_mIoU(predictions, gts):
-<<<<<<< HEAD
-    """ Compute mIoU for predicted text boxes """
-=======
-    try:
-        """ Compute mIoU for predicted text boxes """
-        predictions = np.array(predictions)
-        predictions = predictions.reshape(predictions.shape[0]*predictions.shape[1], 4)
-
-        gts = np.array(gts)
-        gts = gts.reshape(gts.shape[0]*gts.shape[1], 4)
-    except IndexError:
-        print("It seems that I've passed the right exit....")
->>>>>>> c5be45b3d603c1d1d4824bdcb452b14e17852a69
     return mIoU(predictions, gts)
+
+def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes, masked_regions=None):
+    """ Sort annotations and predictions by bounding boxes close to the left-top corner """
+    new_qs_gts_matching = []
+    new_qs_gts_bboxes = []
+    new_pred_bboxes = []
+
+    if masked_regions != None:
+        new_masked_regions = []
     
+    for i in range(len(qs_gts_matching)):
+        num_paintings = len(qs_gts_matching[i])
+        if num_paintings > 1 and len(pred_bboxes[i]) > 1:
+            # First sort real
+            b1_c = box1_closer(qs_gts_bboxes[i][0], qs_gts_bboxes[i][1])
+            if not b1_c:
+                new_qs_gts_matching.append([qs_gts_matching[i][1], qs_gts_matching[i][0]])
+                new_qs_gts_bboxes.append([qs_gts_bboxes[i][1], qs_gts_bboxes[i][0]])
+            else:
+                new_qs_gts_matching.append(qs_gts_matching[i])
+                new_qs_gts_bboxes.append(qs_gts_bboxes[i])
+
+            b1_c = box1_closer(pred_bboxes[i][0], pred_bboxes[i][1])
+            if not b1_c:
+                if masked_regions != None:
+                    new_masked_regions.append([masked_regions[i][1], masked_regions[i][0]])
+                new_pred_bboxes.append([pred_bboxes[i][1], pred_bboxes[i][0]])
+            else:
+                if masked_regions != None:
+                    new_masked_regions.append(masked_regions[i])
+                new_pred_bboxes.append(pred_bboxes[i])
+            
+        else:
+            new_qs_gts_matching.append(qs_gts_matching[i])
+            if masked_regions != None:
+                new_masked_regions.append(masked_regions[i])
+            new_qs_gts_bboxes.append(qs_gts_bboxes[i])
+            new_pred_bboxes.append(pred_bboxes[i])
+
+    result = [new_qs_gts_matching, new_qs_gts_bboxes, new_pred_bboxes]
+    if masked_regions != None:
+        result.append(new_masked_regions)
+    return result
+
+def box1_closer(box1, box2):
+    return (box1[0]**2+box1[1]**2) > (box2[0]**2+box2[1]**2)
+    
+def reformat_qs_gts(qs_gts):
+    tmp = []
+    for i in range(len(qs_gts)):
+        for j in range(len(qs_gts[i])):
+            tmp.append(qs_gts[i][j])
+
+    return tmp
+
+def reformat_assignments_to_save(assignments, text_detections):
+    
+    k = 0
+    assignments_ref = []
+    for i in range(len(text_detections)):
+        assignments_paintings = []
+        for j in range(len(text_detections[i])):
+            assignments_paintings.append(text_detections)
+        assignments_ref.append(assignments_paintings)
+    return assignments_ref
+
 def mIoU(predictions, gts):
     """ Predictions """
     try:
+        predictions = np.concatenate(predictions)
+        gts = np.concatenate(gts)
         output = np.array([bb_intersection_over_union(prediction, gt) for prediction, gt in zip(predictions, gts)]).mean()
     except RuntimeWarning:
         print("If I have nothing, it would be hard to make the mean....")

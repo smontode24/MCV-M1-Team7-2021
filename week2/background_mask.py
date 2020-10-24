@@ -18,11 +18,12 @@ def bg_mask(query_imgs, method):
     print("Obtaining masks")
     segmentation_method = get_method(method)
 
-    results_segmentation, results_bboxes = [], []
+    results_segmentation, results_bboxes, results_splitted_segmentation = [], [], []
     for img in tqdm(query_imgs):
-        segm, bbox = segmentation_method(img)
+        segm, bbox, sep_masks = segmentation_method(img)
         results_segmentation.append(segm)
         results_bboxes.append(bbox)
+        results_splitted_segmentation.append(sep_masks)
 
     if isDebug():
         i = 0
@@ -35,7 +36,7 @@ def bg_mask(query_imgs, method):
             cv2.waitKey(0)
             i += 1
 
-    return results_segmentation, results_bboxes
+    return [results_segmentation, results_bboxes, results_splitted_segmentation]
 
 def apply_mask(query_imgs, masks, method): 
     """ Apply mask to each image in the query set, based on the method that was applied 
@@ -103,13 +104,15 @@ def mask_segmentation_cc(img, mask):
 
     bboxes = [get_bbox(bc)]
     resulting_masks = bc
+    splitted_resulting_masks = [bc]
 
     # Second painting if first one does not take most part + more or less a rectangular shape + no IoU
     if not takes_most_part_image(bc) and regular_shape(sbc) and check_no_iou(bc, sbc):
         bboxes.append(get_bbox(sbc))
         resulting_masks = np.logical_or(resulting_masks==255, sbc==255).astype(np.uint8)*255
+        splitted_resulting_masks.append(splitted_resulting_masks)
 
-    return resulting_masks, bboxes
+    return resulting_masks, bboxes, splitted_resulting_masks
 
 def create_convex_painting(mask, component_mask):
     kernel = np.ones((5, 5), np.uint8)
@@ -119,13 +122,15 @@ def create_convex_painting(mask, component_mask):
     polished_mask = cv2.fillPoly(mask, contours, 255).astype(np.uint8)
     a = polished_mask.copy()
 
+    p = int(max(mask.shape[0]/8, mask.shape[1]/8))
+    polished_mask = cv2.copyMakeBorder(src=polished_mask, top=p, bottom=p, left=p, right=p, borderType=cv2.BORDER_CONSTANT, value=0) 
     size1, size2 = int(mask.shape[0]*1/32),int(mask.shape[1]*1/32)
     kernel = np.ones((size1, size2), np.uint8)
     polished_mask = cv2.morphologyEx(polished_mask, cv2.MORPH_CLOSE, kernel, borderValue=0)
-    size1, size2 = int(mask.shape[0]*1/16),int(mask.shape[1]*1/16)
+    size1, size2 = int(mask.shape[0]/8), int(mask.shape[1]/8)
     kernel = np.ones((size1, size2), np.uint8)
     polished_mask = cv2.morphologyEx(polished_mask, cv2.MORPH_OPEN, kernel, borderValue=0)
-    return polished_mask
+    return polished_mask[p:polished_mask.shape[0]-p, p:polished_mask.shape[1]-p]
 
 def takes_most_part_image(img):
     h_quarter, w_quarter = img.shape[0]//4, img.shape[1]//4
@@ -139,7 +144,7 @@ def get_bbox(mask):
     w_min, w_max = int(np.array(ws[:num_pixel_estimation]).mean()), int(np.array(ws[-num_pixel_estimation:]).mean())
     return [h_min, w_min, h_max, w_max]
 
-def regular_shape(mask, threshold=0.8):
+def regular_shape(mask, threshold=0.7):
     if mask.sum() == 0:
         return False
     h_min, w_min, h_max, w_max = get_bbox(mask)
@@ -172,6 +177,61 @@ def compute_mask_gaussian_HSL(img, margin, threshold=0.000001):
     mask = stats.norm.pdf(img[:,:,0], l_mean, l_std)*stats.norm.pdf(img[:,:,1], a_mean, a_std)*stats.norm.pdf(img[:,:,2], b_mean, b_std) < threshold
 
     return mask
+
+def removal_bg_text(qs_imgs, p_bg_masks, p_bg_annotations, p_text_annotations, method_matching):
+    resulting_images = []
+    if method_matching == "CBHC":
+        #TODO: RECTANGuLAR CROPS + SYNTHESIZE IN TEXT REGION
+        for i in range(len(p_bg_masks)):
+            painting_imgs = []
+            for j in range(len(p_bg_masks[i])):
+                bbox_painting = p_bg_annotations[i][j]
+                cropped_img = qs_imgs[i][bbox_painting[0]:bbox_painting[2], bbox_painting[1]:bbox_painting[3]]
+                bbox_text = p_text_annotations[i][j]
+                bbox_text = [bbox_text[1]-bbox_painting[0], bbox_text[0]-bbox_painting[1], bbox_text[3]-bbox_painting[0], bbox_text[2]-bbox_painting[1]]
+                mask = np.zeros((cropped_img.shape[0], cropped_img.shape[1])).astype(np.uint8)
+                mask[bbox_text[0]:bbox_text[2], bbox_text[1]:bbox_text[3]] = 255
+                cropped_img = cv2.inpaint(cropped_img, mask, 3, cv2.INPAINT_TELEA)
+                painting_imgs.append(cropped_img)
+            resulting_images.append(painting_imgs)
+    else:
+        for i in range(len(p_bg_masks)):
+            painting_imgs = []
+            for j in range(len(p_bg_masks[i])):
+                bbox_painting = p_bg_annotations[i][j]
+                mask_bg = p_bg_masks[i][j].astype(bool)
+                bbox_text = p_text_annotations[i][j]
+                bbox_text = [bbox_text[1], bbox_text[0], bbox_text[3], bbox_text[2]]
+                mask = np.zeros((mask_bg.shape[0], mask_bg.shape[1])).astype(bool)
+                mask[bbox_text[0]:bbox_text[2], bbox_text[1]:bbox_text[3]] = True
+                total_mask = np.logical_or(mask_bg, mask)
+                painting_imgs.append(qs_imgs[i][total_mask])
+            resulting_images.append(painting_imgs)
+    return resulting_images
+
+def removal_text(qs_imgs, p_text_annotations, method_matching):
+    resulting_images = []
+    if method_matching == "CBHC":
+        #TODO: RECTANGuLAR CROPS + SYNTHESIZE IN TEXT REGION
+        for i in range(len(p_text_annotations)):
+            bbox_text = p_text_annotations[i][0]
+            bbox_text = [bbox_text[1], bbox_text[0], bbox_text[3], bbox_text[2]]
+            mask = np.zeros((qs_imgs[i].shape[0], qs_imgs[i].shape[1])).astype(np.uint8)
+            mask[bbox_text[0]:bbox_text[2],bbox_text[1]:bbox_text[3]] = 255
+            cropped_img = qs_imgs[i]
+            #cropped_img = cv2.inpaint(cropped_img, mask, 3, cv2.INPAINT_TELEA)
+            resulting_images.append([cropped_img])
+    else:
+        for i in range(len(p_text_annotations)):
+            bbox_text = p_text_annotations[i][0]
+            bbox_text = [bbox_text[1], bbox_text[0], bbox_text[3], bbox_text[2]]
+            mask = np.zeros((qs_imgs[i].shape[0], qs_imgs[i].shape[1])).astype(np.uint8)
+            mask[bbox_text[0]:bbox_text[2],bbox_text[1]:bbox_text[3]] = 255
+            mask = mask!=255
+            cropped_img = qs_imgs[i]
+            resulting_images.append([cropped_img[mask]])
+
+    return resulting_images
 
 PBM = "PBM"
 METHODS = [PBM]
