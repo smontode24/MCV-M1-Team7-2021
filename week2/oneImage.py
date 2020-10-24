@@ -48,7 +48,6 @@ def gradientX (img):
 def gradientY (img):
     return cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=7)
 
-# Veure gradients x i y, y obtenir els dos rectangles més grans
 
 def intersection(line1, line2):
     """Finds the intersection of two lines given in Hesse normal form.
@@ -142,30 +141,6 @@ if __name__ == "__main__":
     blurred_img2_11_bw = rgb2gray(blurred_img2_11)
     blurred_img2_75_bw = rgb2gray(blurred_img2_75)
 
-    '''
-    ## AVOID TO USE THEM:
-    # Why? Because they're very specific. CV ones are much appropiate.
-    ## GRADIENTS IN BW  [USING NUMPY]
-    gradX_0_bw = ndimage.sobel(img0_bw, axis=0, mode='constant')
-    gradY_0_bw = ndimage.sobel(img0_bw, axis=1, mode='constant')
-    # Get square root of sum of squares
-    sobel_0_bw = np.hypot(gradX_0_bw, gradY_0_bw)
-
-    gradX_1_bw = ndimage.sobel(img1_bw, axis=0, mode='constant')
-    gradY_1_bw = ndimage.sobel(img1_bw, axis=1, mode='constant')
-    # Get square root of sum of squares
-    sobel_1_bw = np.hypot(gradX_1_bw, gradY_1_bw)
-
-    gradX_2_bw = ndimage.sobel(img2_bw, axis=0, mode='constant')
-    gradY_2_bw = ndimage.sobel(img2_bw, axis=1, mode='constant')
-    # Get square root of sum of squares
-    sobel_2_bw = np.hypot(gradX_2_bw, gradY_2_bw)
-
-    gradX_m2_bw = ndimage.sobel(msk2_bw, axis=0, mode='constant')
-    gradY_m2_bw = ndimage.sobel(msk2_bw, axis=1, mode='constant')
-    # Get square root of sum of squares
-    sobel_m2_bw = np.hypot(gradX_m2_bw, gradY_m2_bw)
-    '''
 
     ## These gradients are much better. More general (not tinny detailed)
     ## GRADIENTS IN BW  [USING CV]
@@ -226,13 +201,6 @@ if __name__ == "__main__":
     # Get square root of sum of squares
     sobel_2_75_bw = np.hypot(gradX_2_75_bw, gradY_2_75_bw)
 
-    '''
-    # AS I'm not longer using the numpy ones, it's not necessary
-    diff0 = cv_sobel_0_bw-sobel_0_bw
-    diff1 = cv_sobel_1_bw-sobel_1_bw
-    diff2 = cv_sobel_2_bw-sobel_2_bw
-    '''
-
     # Apply a Gradient X and Y to the SOBEL GRADIENT OF THE IMAGE
     gradX_sobel = gradientX(cv_sobel_2_bw)
     print("Minimum value of SUM is: ", np.amin(gradX_sobel))
@@ -245,30 +213,6 @@ if __name__ == "__main__":
     sum_of_grad = gradX_sobel+gradY_sobel
     min_of_grad = gradX_sobel-gradY_sobel
 
-    '''
-    print ("Minimum value of SUM is: ", np.amin(sum_of_grad))
-    print("Max value of SUM is: ", np.amax(sum_of_grad))
-    print("-----")
-    print("Minimum value of MIN is: ", np.amin(min_of_grad))
-    print("Max value of MIN is: ", np.amax(min_of_grad))
-
-    # Before continuing, all values greater than 255, can be 255.
-    # Same for values < 0
-
-    sum_of_grad[sum_of_grad > 255] = 255
-    sum_of_grad[sum_of_grad < 0] = 0
-
-    min_of_grad[min_of_grad > 255] = 255
-    min_of_grad[min_of_grad < 0] = 0
-
-    print("--- SECOND ----")
-    print("Minimum value of SUM is: ", np.amin(sum_of_grad))
-    print("Max value of SUM is: ", np.amax(sum_of_grad))
-    print("-----")
-    print("Minimum value of MIN is: ", np.amin(min_of_grad))
-    print("Max value of MIN is: ", np.amax(min_of_grad))
-
-    '''
 
     # as the ndArray have values > 0
     # NORMALIZE
@@ -279,64 +223,63 @@ if __name__ == "__main__":
     unique = np.unique(data_u8)
 
     # To show the histogram
+    ## If you want, you can use it.... pero el codi estava per a veure histogrames i comprovar
+    ## que les modificacions anteriors estaven bé
     #plt.hist(data_u8.ravel(), 256, [0, 256]);
     #plt.show()
 
     ## Apply Mean
+    ## Els valors al costat son indicatius del valor inicial
     mean_sum = np.mean(sum_of_grad) ## -256
     mean_min = np.mean(min_of_grad) ## 686
     mean_du8 = np.mean(data_u8)     ## 123
 
     #as the mean in u8 format == 123, apply this threshold
+    ## En la seguent linia, per a una imatge data_u8 que té integer_uint8
+    ## d'aqui el seu nom... tots els valors inferiors al seu threshold,
+    ## son posats a 0.
+    ## aquest és un exemple de modificació / binarització de tota la imatge
+    ## fet de forma manual.
     data_u8[data_u8 <= mean_du8] = 0
-    print("Minimum value of data_u8 is: ", np.amin(data_u8))
-    print("Max value of SUM data_u8: ", np.amax(data_u8))
-    unique = np.unique(data_u8) ## 112
+    #print("Minimum value of data_u8 is: ", np.amin(data_u8))
+    #print("Max value of SUM data_u8: ", np.amax(data_u8))
+    unique = np.unique(data_u8) ## 112 -- Quins son els valors que son unics en una imatge que te la meitat = 0
 
     medianblur_7 = cv2.medianBlur(data_u8, ksize=7)
     medianblur_15 = cv2.medianBlur(data_u8, ksize=15)
     # ME PASSÉ: medianblur_33 = cv2.medianBlur(data_u8, ksize=33)
 
-    ## Copied from documentation
+    ## CODI FUNCIÓ HOUGH LINES!!
+    ## A PARTIR D'AQUIÍ ÉS on he obtingut millors resultats
+
+
+    ## Copied from documentation: https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html
+    ## Torno a carregar la imatge.
+    ## Tot aquest codi prové de la documentació: https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html
+    ## Si, se que ho he posat 2 vegades. Es perquè quedi clar!
     src = img2
 
-    ## Canny recommended a upper:lower ratio between 2:1 and 3:1.
+    ## Canny recommended a upper:lower ratio between 2:1 and 3:1. (from documentation)
+    ## TODO: Pots jugar amb els valors de Canny, ja que no els he tocat i m'han funcionat per a la imatge inicial
+    ## Però hi jugaràs, si en altres imatges veus que Canny va malament i no et pilla cap linia del quadre
     dst = cv2.Canny(src, 200, 600, None, 3)
 
     cdst = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
     cdstP = np.copy(cdst)
 
-    ## HOUGH LINES!! >> Better to used the probabilistics
-    '''
-    lines = cv2.HoughLines(dst, 1, np.pi / 180, 150, None, 0, 0)
-
-    if lines is not None:
-        for i in range(0, len(lines)):
-            rho = lines[i][0][0]
-            theta = lines[i][0][1]
-            a = math.cos(theta)
-            b = math.sin(theta)
-            x0 = a * rho
-            y0 = b * rho
-            pt1 = (int(x0 + 1000 * (-b)), int(y0 + 1000 * (a)))
-            pt2 = (int(x0 - 1000 * (-b)), int(y0 - 1000 * (a)))
-            cv2.line(cdst, pt1, pt2, (0, 0, 255), 3, cv2.LINE_AA)
-    '''
-    # dst = source
-    # param 1 = minimum lenght
+    ## HOUGH LINES:
+    ## Hi has dos versions. La 2a es la priemra que he trobat. La seguent es la que estic fent servir
+    ## Fora bo anar comparant una o altre.... i jugar amb els caracters
     linesP = cv2.HoughLinesP(dst, rho=1, theta=np.pi/180, threshold=50,
                            minLineLength=100, maxLineGap=10)
     #linesP = cv2.HoughLinesP(dst, 1, np.pi / 180, 50, None, 50, 10)
 
-    # SOURCE size = 140 lines
+    # SOURCE size = 140 lines  -- ANotacio utilitzada per veure si anava millorant la detecció de linies
+    # mathematicalLines es un array que intenta expressar les linies d'una manera més humana
+    # amb punts d'inici, final, graus, distàncies....
     mathematicalLines = []
     if linesP is not None:
         for i in range(0, len(linesP)):
-            # start point
-            # distance x
-            # distance y
-            # degrees
-            # length
             l = linesP[i][0]
             start_point = [l[0],l[1],l[2],l[3]]
             distanceX = abs(l[2]-l[0])
@@ -358,33 +301,42 @@ if __name__ == "__main__":
             otherLines.append(mathematicalLines[i])
     print ("TOTAL of lines: ", len(mathematicalLines))
 
+    ## Lines are defined by:
+    ## tuple of 4 point  [x1, y1, x2, y2]
+    ## >> Note, when creating, you need to create two points : [ P1 (x1,y1) ; P2 (x2, y2) ]
+    ## distance in X [for vertical Lines, should be close to 0]
+    ## distance in y [for horitzontal lines, should be close to 0]
+    ## degrees [of course you can use grad..... but degrees are great]
+    ## lenght [
+
     for i in range(0, len(horitzontalLines)):
-        #print horitzontal in blue
-        #image_to_be_drawn  // Start point // End Point // color // thickness //
+        #print horitzontal in RED
+        #image_to_be_drawn  // Start point // End Point // color // thickness // AA = Maco (no ho toquis) (opcions: 4 pixels, 8 pixels)
         cv2.line(cdstP, (horitzontalLines[i][0][0], horitzontalLines[i][0][1]), (horitzontalLines[i][0][2], horitzontalLines[i][0][3]), (0, 0, 255), 3, cv2.LINE_AA)
 
     print ("Horitzontal lines: ", len(horitzontalLines))
 
     for i in range(0, len(verticalLines)):
-        #print horitzontal in blue
-        #image_to_be_drawn  // Start point // End Point // color // thickness //
+        #print VERTICAL in GREEN
         cv2.line(cdstP, (verticalLines[i][0][0], verticalLines[i][0][1]),
                  (verticalLines[i][0][2], verticalLines[i][0][3]), (0, 255, 0), 3, cv2.LINE_AA)
+        print("LINE ", i, ": ")
+        print("--------------")
+        print(verticalLines[i])
 
     print("Vertical lines: ", len(verticalLines))
 
     for i in range(0, len(otherLines)):
-        # print horitzontal in blue
-        # image_to_be_drawn  // Start point // End Point // color // thickness //
+        # print OTHERS in BLUE
         cv2.line(cdstP, (otherLines[i][0][0], otherLines[i][0][1]),
                  (otherLines[i][0][2], otherLines[i][0][3]), (255, 0, 0), 3, cv2.LINE_AA)
 
     print("Other lines: ", len(otherLines))
 
 
-    cv2.imshow("Source", src)
-    cv2.imshow("Detected Lines (in red) - Standard Hough Line Transform", cdst)
-    cv2.imshow("Detected Lines (in red) - Probabilistic Line Transform", cdstP)
+    ## Ho comento perquè no és necessari
+    ## cv2.imshow("Source", src) # Imatge original
+    cv2.imshow("Detected Lines - Probabilistic Line Transform", cdstP)
 
     cv2.waitKey()
 
