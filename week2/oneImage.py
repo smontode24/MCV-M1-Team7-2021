@@ -249,95 +249,11 @@ if __name__ == "__main__":
     medianblur_15 = cv2.medianBlur(data_u8, ksize=15)
     # ME PASSÉ: medianblur_33 = cv2.medianBlur(data_u8, ksize=33)
 
-    ## CODI FUNCIÓ HOUGH LINES!!
+    ## CODI FUNCIÓ LECTURA VIA OCR
     ## A PARTIR D'AQUIÍ ÉS on he obtingut millors resultats
 
 
-    ## Copied from documentation: https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html
-    ## Torno a carregar la imatge.
-    ## Tot aquest codi prové de la documentació: https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html
-    ## Si, se que ho he posat 2 vegades. Es perquè quedi clar!
     src = img2
 
-    ## Canny recommended a upper:lower ratio between 2:1 and 3:1. (from documentation)
-    ## TODO: Pots jugar amb els valors de Canny, ja que no els he tocat i m'han funcionat per a la imatge inicial
-    ## Però hi jugaràs, si en altres imatges veus que Canny va malament i no et pilla cap linia del quadre
-    dst = cv2.Canny(src, 200, 600, None, 3)
-
-    cdst = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
-    cdstP = np.copy(cdst)
-
-    ## HOUGH LINES:
-    ## Hi has dos versions. La 2a es la priemra que he trobat. La seguent es la que estic fent servir
-    ## Fora bo anar comparant una o altre.... i jugar amb els caracters
-    linesP = cv2.HoughLinesP(dst, rho=1, theta=np.pi/180, threshold=50,
-                           minLineLength=100, maxLineGap=10)
-    #linesP = cv2.HoughLinesP(dst, 1, np.pi / 180, 50, None, 50, 10)
-
-    # SOURCE size = 140 lines  -- ANotacio utilitzada per veure si anava millorant la detecció de linies
-    # mathematicalLines es un array que intenta expressar les linies d'una manera més humana
-    # amb punts d'inici, final, graus, distàncies....
-    mathematicalLines = []
-    if linesP is not None:
-        for i in range(0, len(linesP)):
-            l = linesP[i][0]
-            start_point = [l[0],l[1],l[2],l[3]]
-            distanceX = abs(l[2]-l[0])
-            distanceY = abs(l[3]-l[1])
-            radians = np.degrees(math.atan2(distanceY, distanceX))
-            hypotenuse = np.hypot(distanceY, distanceX)
-            mathematicalLines.append([start_point, distanceX, distanceY, radians, hypotenuse])
-            #cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0, 0, 255), 3, cv2.LINE_AA)
-
-    verticalLines = [] # SOURCE = 5 || 4
-    horitzontalLines = [] # SOURCE = 17  || 10
-    otherLines = [] # SOURCE = 13 || 3
-    for i in range(0,len(mathematicalLines)):
-        if (-2 <= mathematicalLines[i][3] <= 2):
-            horitzontalLines.append(mathematicalLines[i])
-        elif (88 <= mathematicalLines[i][3] <= 92):
-            verticalLines.append(mathematicalLines[i])
-        else:
-            otherLines.append(mathematicalLines[i])
-    print ("TOTAL of lines: ", len(mathematicalLines))
-
-    ## Lines are defined by:
-    ## tuple of 4 point  [x1, y1, x2, y2]
-    ## >> Note, when creating, you need to create two points : [ P1 (x1,y1) ; P2 (x2, y2) ]
-    ## distance in X [for vertical Lines, should be close to 0]
-    ## distance in y [for horitzontal lines, should be close to 0]
-    ## degrees [of course you can use grad..... but degrees are great]
-    ## lenght [
-
-    for i in range(0, len(horitzontalLines)):
-        #print horitzontal in RED
-        #image_to_be_drawn  // Start point // End Point // color // thickness // AA = Maco (no ho toquis) (opcions: 4 pixels, 8 pixels)
-        cv2.line(cdstP, (horitzontalLines[i][0][0], horitzontalLines[i][0][1]), (horitzontalLines[i][0][2], horitzontalLines[i][0][3]), (0, 0, 255), 3, cv2.LINE_AA)
-
-    print ("Horitzontal lines: ", len(horitzontalLines))
-
-    for i in range(0, len(verticalLines)):
-        #print VERTICAL in GREEN
-        cv2.line(cdstP, (verticalLines[i][0][0], verticalLines[i][0][1]),
-                 (verticalLines[i][0][2], verticalLines[i][0][3]), (0, 255, 0), 3, cv2.LINE_AA)
-        print("LINE ", i, ": ")
-        print("--------------")
-        print(verticalLines[i])
-
-    print("Vertical lines: ", len(verticalLines))
-
-    for i in range(0, len(otherLines)):
-        # print OTHERS in BLUE
-        cv2.line(cdstP, (otherLines[i][0][0], otherLines[i][0][1]),
-                 (otherLines[i][0][2], otherLines[i][0][3]), (255, 0, 0), 3, cv2.LINE_AA)
-
-    print("Other lines: ", len(otherLines))
-
-
-    ## Ho comento perquè no és necessari
-    ## cv2.imshow("Source", src) # Imatge original
-    cv2.imshow("Detected Lines - Probabilistic Line Transform", cdstP)
-
-    cv2.waitKey()
 
     print("hey, stop!")
