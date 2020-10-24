@@ -50,6 +50,37 @@ def gradientY (img):
 
 # Veure gradients x i y, y obtenir els dos rectangles més grans
 
+def intersection(line1, line2):
+    """Finds the intersection of two lines given in Hesse normal form.
+    Credits: https://stackoverflow.com/questions/46565975/find-intersection-point-of-two-lines-drawn-using-houghlines-opencv
+
+    Returns closest integer pixel locations.
+    See https://stackoverflow.com/a/383527/5087436
+    """
+    rho1, theta1 = line1[0]
+    rho2, theta2 = line2[0]
+    A = np.array([
+        [np.cos(theta1), np.sin(theta1)],
+        [np.cos(theta2), np.sin(theta2)]
+    ])
+    b = np.array([[rho1], [rho2]])
+    x0, y0 = np.linalg.solve(A, b)
+    x0, y0 = int(np.round(x0)), int(np.round(y0))
+    return [[x0, y0]]
+
+def segmented_intersections(lines):
+    """Finds the intersections between groups of lines."""
+
+    intersections = []
+    for i, group in enumerate(lines[:-1]):
+        for next_group in lines[i+1:]:
+            for line1 in group:
+                for line2 in next_group:
+                    intersections.append(intersection(line1, line2))
+
+    return intersections
+
+
 
 # Reusing some calls from the MAIN code,
 # this program focused in one imag
@@ -292,9 +323,12 @@ if __name__ == "__main__":
             cv2.line(cdst, pt1, pt2, (0, 0, 255), 3, cv2.LINE_AA)
     '''
     # dst = source
-    # 1
-    linesP = cv2.HoughLinesP(dst, 1, np.pi / 180, 50, None, 50, 10)
+    # param 1 = minimum lenght
+    linesP = cv2.HoughLinesP(dst, rho=1, theta=np.pi/180, threshold=50,
+                           minLineLength=100, maxLineGap=10)
+    #linesP = cv2.HoughLinesP(dst, 1, np.pi / 180, 50, None, 50, 10)
 
+    # SOURCE size = 140 lines
     mathematicalLines = []
     if linesP is not None:
         for i in range(0, len(linesP)):
@@ -312,21 +346,24 @@ if __name__ == "__main__":
             mathematicalLines.append([start_point, distanceX, distanceY, radians, hypotenuse])
             #cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0, 0, 255), 3, cv2.LINE_AA)
 
-    verticalLines = []
-    horitzontalLines = []
-    otherLines = []
+    verticalLines = [] # SOURCE = 5 || 4
+    horitzontalLines = [] # SOURCE = 17  || 10
+    otherLines = [] # SOURCE = 13 || 3
     for i in range(0,len(mathematicalLines)):
-        if (-0.5 <= mathematicalLines[i][3] <= 0.5):
+        if (-2 <= mathematicalLines[i][3] <= 2):
             horitzontalLines.append(mathematicalLines[i])
-        elif (89.5 <= mathematicalLines[i][3] <= 90.5):
+        elif (88 <= mathematicalLines[i][3] <= 92):
             verticalLines.append(mathematicalLines[i])
         else:
             otherLines.append(mathematicalLines[i])
+    print ("TOTAL of lines: ", len(mathematicalLines))
 
     for i in range(0, len(horitzontalLines)):
         #print horitzontal in blue
         #image_to_be_drawn  // Start point // End Point // color // thickness //
         cv2.line(cdstP, (horitzontalLines[i][0][0], horitzontalLines[i][0][1]), (horitzontalLines[i][0][2], horitzontalLines[i][0][3]), (0, 0, 255), 3, cv2.LINE_AA)
+
+    print ("Horitzontal lines: ", len(horitzontalLines))
 
     for i in range(0, len(verticalLines)):
         #print horitzontal in blue
@@ -334,12 +371,15 @@ if __name__ == "__main__":
         cv2.line(cdstP, (verticalLines[i][0][0], verticalLines[i][0][1]),
                  (verticalLines[i][0][2], verticalLines[i][0][3]), (0, 255, 0), 3, cv2.LINE_AA)
 
+    print("Vertical lines: ", len(verticalLines))
+
     for i in range(0, len(otherLines)):
         # print horitzontal in blue
         # image_to_be_drawn  // Start point // End Point // color // thickness //
         cv2.line(cdstP, (otherLines[i][0][0], otherLines[i][0][1]),
                  (otherLines[i][0][2], otherLines[i][0][3]), (255, 0, 0), 3, cv2.LINE_AA)
 
+    print("Other lines: ", len(otherLines))
 
 
     cv2.imshow("Source", src)
