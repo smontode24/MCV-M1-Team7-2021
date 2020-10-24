@@ -99,6 +99,55 @@ def celled_2dhist(img, cells=[16, 16]):
     
     return np.array(descriptor).reshape(-1)
 
+def celled_2dhist(img, cells=[16, 16]):
+    """ Divide image in cells and compute the 2d histogram in another color space.
+            cells: Cell grid size (divides the image into [nxm] cells if cells=[n,m])
+        returns: Image descriptor (np.array)
+    """
+    img, p1, p2 = remove_frame(img)
+
+    descriptor = []
+    w,h = img.shape[:2]
+    w_ranges = [(i*w)//cells[0] for i in range(cells[0])]+[-1]
+    h_ranges = [(i*h)//cells[1] for i in range(cells[1])]+[-1]
+
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
+    
+    for i in range(cells[0]):
+        for j in range(cells[1]):
+            cr = img[w_ranges[i]:w_ranges[i+1], h_ranges[j]:h_ranges[j+1], 1].reshape(-1)
+            cb = img[w_ranges[i]:w_ranges[i+1], h_ranges[j]:h_ranges[j+1], 2].reshape(-1)
+            vals = np.histogram2d(cr, cb, bins=(np.arange(0, 255, 10), np.arange(0, 255, 10)))[0]
+            normalized_hist = vals/vals.sum()
+            descriptor.append(normalized_hist)
+    
+    return np.array(descriptor).reshape(-1)
+
+def celled_2dhist_multiresolution(img, cells=[[1,1],[2,2],[4,4],[8,8],[16, 16]]):
+    """ Divide image in cells and compute the 2d histogram in another color space.
+            cells: Cell grid size (divides the image into [nxm] cells if cells=[n,m])
+        returns: Image descriptor (np.array)
+    """
+    img, p1, p2 = remove_frame(img)
+
+    descriptor = []
+    w,h = img.shape[:2]
+    for cell in cells:
+        w_ranges = [(i*w)//cell[0] for i in range(cell[0])]+[-1]
+        h_ranges = [(i*h)//cell[1] for i in range(cell[1])]+[-1]
+
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
+        
+        for i in range(cell[0]):
+            for j in range(cell[1]):
+                cr = img[w_ranges[i]:w_ranges[i+1], h_ranges[j]:h_ranges[j+1], 1].reshape(-1)
+                cb = img[w_ranges[i]:w_ranges[i+1], h_ranges[j]:h_ranges[j+1], 2].reshape(-1)
+                vals = np.histogram2d(cr, cb, bins=(np.arange(0, 255, 10), np.arange(0, 255, 10)))[0]
+                normalized_hist = vals/vals.sum()
+                descriptor.append(normalized_hist)
+    
+    return np.array(descriptor).reshape(-1)
+
 def oned_hist(img):
     """ One dimensional histogram of images. 
         returns: Image descriptor (np.array)
@@ -142,13 +191,14 @@ def twod_hist(img):
     
     return np.array(descriptor).reshape(-1)
 
-OPTIONS = ["onedcelled", "CBHC", "1dhist", "2dhist"]
+OPTIONS = ["onedcelled", "CBHC", "1dhist", "2dhist", "CBHCM"]
 
 METHOD_MAPPING = {
     OPTIONS[0]: celled_1dhist,
     OPTIONS[1]: celled_2dhist,
     OPTIONS[2]: oned_hist,
-    OPTIONS[3]: twod_hist
+    OPTIONS[3]: twod_hist,
+    OPTIONS[4]: celled_2dhist_multiresolution
 }
 
 def get_method(method):

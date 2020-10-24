@@ -110,7 +110,7 @@ def mask_segmentation_cc(img, mask):
     if not takes_most_part_image(bc) and regular_shape(sbc) and check_no_iou(bc, sbc):
         bboxes.append(get_bbox(sbc))
         resulting_masks = np.logical_or(resulting_masks==255, sbc==255).astype(np.uint8)*255
-        splitted_resulting_masks.append(splitted_resulting_masks)
+        splitted_resulting_masks.append(sbc)
 
     return resulting_masks, bboxes, splitted_resulting_masks
 
@@ -130,6 +130,12 @@ def create_convex_painting(mask, component_mask):
     size1, size2 = int(mask.shape[0]/8), int(mask.shape[1]/8)
     kernel = np.ones((size1, size2), np.uint8)
     polished_mask = cv2.morphologyEx(polished_mask, cv2.MORPH_OPEN, kernel, borderValue=0)
+
+    if len(polished_mask[polished_mask!=0]) != 0:
+        rect_portion = 0.6
+        x0,y0,x1,y1 = get_bbox(polished_mask)
+        kernel = np.ones((int((x1-x0)*rect_portion), int((y1-y0)*rect_portion)), np.uint8)
+        polished_mask = cv2.morphologyEx(polished_mask, cv2.MORPH_OPEN, kernel, borderValue=0)
     return polished_mask[p:polished_mask.shape[0]-p, p:polished_mask.shape[1]-p]
 
 def takes_most_part_image(img):
@@ -180,8 +186,7 @@ def compute_mask_gaussian_HSL(img, margin, threshold=0.000001):
 
 def removal_bg_text(qs_imgs, p_bg_masks, p_bg_annotations, p_text_annotations, method_matching):
     resulting_images = []
-    if method_matching == "CBHC":
-        #TODO: RECTANGuLAR CROPS + SYNTHESIZE IN TEXT REGION
+    if method_matching == "CBHC" or method_matching == "CBHCM":
         for i in range(len(p_bg_masks)):
             painting_imgs = []
             for j in range(len(p_bg_masks[i])):
@@ -211,7 +216,7 @@ def removal_bg_text(qs_imgs, p_bg_masks, p_bg_annotations, p_text_annotations, m
 
 def removal_text(qs_imgs, p_text_annotations, method_matching):
     resulting_images = []
-    if method_matching == "CBHC":
+    if method_matching == "CBHC" or method_matching == "CBHCM":
         #TODO: RECTANGuLAR CROPS + SYNTHESIZE IN TEXT REGION
         for i in range(len(p_text_annotations)):
             bbox_text = p_text_annotations[i][0]
@@ -219,7 +224,7 @@ def removal_text(qs_imgs, p_text_annotations, method_matching):
             mask = np.zeros((qs_imgs[i].shape[0], qs_imgs[i].shape[1])).astype(np.uint8)
             mask[bbox_text[0]:bbox_text[2],bbox_text[1]:bbox_text[3]] = 255
             cropped_img = qs_imgs[i]
-            #cropped_img = cv2.inpaint(cropped_img, mask, 3, cv2.INPAINT_TELEA)
+            cropped_img = cv2.inpaint(cropped_img, mask, 3, cv2.INPAINT_TELEA)
             resulting_images.append([cropped_img])
     else:
         for i in range(len(p_text_annotations)):

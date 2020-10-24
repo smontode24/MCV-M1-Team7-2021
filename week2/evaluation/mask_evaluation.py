@@ -203,7 +203,7 @@ def mask_metrics(mask_predictions, mask_gts):
 def text_mIoU(predictions, gts):
     return mIoU(predictions, gts)
 
-def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes, masked_regions=None):
+def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes, masked_regions=None, masked_boxes=None):
     """ Sort annotations and predictions by bounding boxes close to the left-top corner """
     new_qs_gts_matching = []
     new_qs_gts_bboxes = []
@@ -211,14 +211,16 @@ def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes
 
     if masked_regions != None:
         new_masked_regions = []
+    if masked_boxes != None:
+        new_masked_boxes = []
     
     for i in range(len(qs_gts_matching)):
-        num_paintings = len(qs_gts_matching[i])
+        num_paintings = len(qs_gts_matching[i][0])
         if num_paintings > 1 and len(pred_bboxes[i]) > 1:
             # First sort real
             b1_c = box1_closer(qs_gts_bboxes[i][0], qs_gts_bboxes[i][1])
             if not b1_c:
-                new_qs_gts_matching.append([qs_gts_matching[i][1], qs_gts_matching[i][0]])
+                new_qs_gts_matching.append([qs_gts_matching[i][0][1], qs_gts_matching[i][0][0]])
                 new_qs_gts_bboxes.append([qs_gts_bboxes[i][1], qs_gts_bboxes[i][0]])
             else:
                 new_qs_gts_matching.append(qs_gts_matching[i])
@@ -228,26 +230,67 @@ def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes
             if not b1_c:
                 if masked_regions != None:
                     new_masked_regions.append([masked_regions[i][1], masked_regions[i][0]])
+                    new_masked_boxes.append([masked_boxes[i][1], masked_boxes[i][0]])
                 new_pred_bboxes.append([pred_bboxes[i][1], pred_bboxes[i][0]])
             else:
                 if masked_regions != None:
                     new_masked_regions.append(masked_regions[i])
+                    new_masked_boxes.append(masked_boxes[i])
                 new_pred_bboxes.append(pred_bboxes[i])
             
         else:
             new_qs_gts_matching.append(qs_gts_matching[i])
             if masked_regions != None:
                 new_masked_regions.append(masked_regions[i])
+                new_masked_boxes.append(masked_boxes[i])
             new_qs_gts_bboxes.append(qs_gts_bboxes[i])
             new_pred_bboxes.append(pred_bboxes[i])
 
     result = [new_qs_gts_matching, new_qs_gts_bboxes, new_pred_bboxes]
     if masked_regions != None:
         result.append(new_masked_regions)
+        result.append(new_masked_boxes)
+
+    return result
+
+def sort_predictions_no_gt(pred_bboxes, masked_regions=None, masked_boxes=None):
+    """ Sort annotations and predictions by bounding boxes close to the left-top corner """
+    new_pred_bboxes = []
+
+    if masked_regions != None:
+        new_masked_regions = []
+    if masked_boxes != None:
+        new_masked_boxes = []
+    
+    for i in range(len(pred_bboxes)):
+        if len(pred_bboxes[i]) > 1:
+            # First sort real
+            b1_c = box1_closer(pred_bboxes[i][0], pred_bboxes[i][1])
+            if not b1_c:
+                if masked_regions != None:
+                    new_masked_regions.append([masked_regions[i][1], masked_regions[i][0]])
+                    new_masked_boxes.append([masked_boxes[i][1], masked_boxes[i][0]])
+                new_pred_bboxes.append([pred_bboxes[i][1], pred_bboxes[i][0]])
+            else:
+                if masked_regions != None:
+                    new_masked_regions.append(masked_regions[i])
+                    new_masked_boxes.append(masked_boxes[i])
+                new_pred_bboxes.append(pred_bboxes[i])
+            
+        else:
+            if masked_regions != None:
+                new_masked_regions.append(masked_regions[i])
+                new_masked_boxes.append(masked_boxes[i])
+            
+    result = [new_pred_bboxes]
+    if masked_regions != None:
+        result.append(new_masked_regions)
+        result.append(new_masked_boxes)
+
     return result
 
 def box1_closer(box1, box2):
-    return (box1[0]**2+box1[1]**2) > (box2[0]**2+box2[1]**2)
+    return (box1[0]**2+box1[1]**2) < (box2[0]**2+box2[1]**2)
     
 def reformat_qs_gts(qs_gts):
     tmp = []

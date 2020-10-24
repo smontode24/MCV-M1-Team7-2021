@@ -45,16 +45,6 @@ def parse_input_args():
 
     args = parser.parse_args()
 
-    # TODO: @Sergi
-    # Add a public check (WARNING) that if the size between qs_imgs, qs_gts & qs_mask_list is different
-    # maybe there's an error while loading
-    #
-    # Size of qs_imgs:          30
-    # Size of qs_gts :          30
-    # Size of qs_mask_list:     0        <<< HERE THE WARNING
-    # Size of qs_text_bboxes:   30
-    #
-
     if args.debug == 1:
         setDebugMode(True)
     return args
@@ -104,11 +94,14 @@ def match_paintings(args):
 
     # Clear bg and text
     if args.text_removal and args.masking:
-        bg_reord = sort_annotations_and_predictions(qs_gts, qs_text_bboxes, text_regions[1], masked_regions=masked_regions[2])
-        qs_gts, qs_text_bboxes, text_regions[1], masked_regions[2] = bg_reord
+        if type(qs_gts) == list:
+            bg_reord = sort_annotations_and_predictions(qs_gts, qs_text_bboxes, text_regions[1], masked_regions=masked_regions[2], masked_boxes=masked_regions[1])
+            qs_gts, qs_text_bboxes, text_regions[1], masked_regions[2], masked_regions[1] = bg_reord
+        else:
+            bg_reord = sort_predictions_no_gt(text_regions[1], masked_regions=masked_regions[2], masked_boxes=masked_regions[1])
         qs_imgs_refined = removal_bg_text(qs_imgs, masked_regions[2], masked_regions[1], text_regions[1], args.retrieval_method)
     else:
-        qs_gts, qs_text_bboxes, text_regions[1] = sort_annotations_and_predictions(qs_gts, qs_text_bboxes, text_regions[1])
+        #qs_gts, qs_text_bboxes, text_regions[1] = sort_annotations_and_predictions(qs_gts, qs_text_bboxes, text_regions[1])
         qs_imgs_refined = removal_text(qs_imgs, text_regions[1], args.retrieval_method)
 
     assignments = painting_matching(qs_imgs_refined, db_imgs, args.retrieval_method, metric=get_measure(args.matching_measure))
@@ -145,7 +138,8 @@ def match_paintings(args):
     if type(qs_gts) == list:
         qs_gts = reformat_qs_gts(qs_gts)
         qs_gts = np.array(qs_gts).reshape(-1, 1)
-        qs_gts = np.concatenate([[q for q in qs_gt[0]] for qs_gt in qs_gts]).reshape(-1, 1)
+        if qs_gts[0].dtype == 'O':
+            qs_gts = np.concatenate([[q for q in qs_gt[0]] for qs_gt in qs_gts]).reshape(-1, 1)
         map_at_1 = mapk(qs_gts, assignments, k=1)
         map_at_5 = mapk(qs_gts, assignments, k=5)
 
