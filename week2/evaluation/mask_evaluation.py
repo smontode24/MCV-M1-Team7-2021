@@ -307,7 +307,8 @@ def reformat_assignments_to_save(assignments, text_detections):
     for i in range(len(text_detections)):
         assignments_paintings = []
         for j in range(len(text_detections[i])):
-            assignments_paintings.append(text_detections)
+            assignments_paintings.append(assignments[k].tolist())
+            k += 1
         assignments_ref.append(assignments_paintings)
     return assignments_ref
 

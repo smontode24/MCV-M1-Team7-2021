@@ -90,27 +90,33 @@ def mask_segmentation_cc(img, mask):
     sizes = stats[:, -1]
 
     top_two_conn_comp_idx = sizes.argsort()
-    top_two_conn_comp_idx = top_two_conn_comp_idx[top_two_conn_comp_idx!=0][[-2,-1]][::-1]
-
+    top_two_conn_comp_idx = top_two_conn_comp_idx[top_two_conn_comp_idx!=0]
+    if len(top_two_conn_comp_idx) > 1:
+        top_two_conn_comp_idx = top_two_conn_comp_idx[[-2,-1]][::-1]
+    else:
+        top_two_conn_comp_idx = top_two_conn_comp_idx[[-1]][::-1]
+    
     idxs = [idx for idx in top_two_conn_comp_idx]
 
     bc = np.zeros(output.shape)
     bc[output == idxs[0]] = 255
     bc = create_convex_painting(mask, bc)
 
-    sbc = np.zeros(output.shape)
-    sbc[output == idxs[1]] = 255
-    sbc = create_convex_painting(mask, sbc)
+    if len(idxs) > 1:
+        sbc = np.zeros(output.shape)
+        sbc[output == idxs[1]] = 255
+        sbc = create_convex_painting(mask, sbc)
 
     bboxes = [get_bbox(bc)]
     resulting_masks = bc
     splitted_resulting_masks = [bc]
 
     # Second painting if first one does not take most part + more or less a rectangular shape + no IoU
-    if not takes_most_part_image(bc) and regular_shape(sbc) and check_no_iou(bc, sbc):
-        bboxes.append(get_bbox(sbc))
-        resulting_masks = np.logical_or(resulting_masks==255, sbc==255).astype(np.uint8)*255
-        splitted_resulting_masks.append(sbc)
+    if len(idxs) > 1:
+        if not takes_most_part_image(bc) and regular_shape(sbc) and check_no_iou(bc, sbc):
+            bboxes.append(get_bbox(sbc))
+            resulting_masks = np.logical_or(resulting_masks==255, sbc==255).astype(np.uint8)*255
+            splitted_resulting_masks.append(sbc)
 
     return resulting_masks, bboxes, splitted_resulting_masks
 

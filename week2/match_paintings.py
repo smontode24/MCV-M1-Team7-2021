@@ -59,11 +59,11 @@ def match_paintings(args):
     qs_imgs, qs_gts, qs_mask_list, qs_text_bboxes = load_query_set(path.join(args.ds_path, args.qs_path))
 
     if isDebug():
-        print("Time to load DB and query set:", time()-t0, "s")
-        print("Size of qs_imgs:         ", len(qs_imgs))
-        print("Size of qs_gts :         ", len(qs_gts))
-        print("Size of qs_mask_list:    ", len(qs_mask_list))
-        print("Size of qs_text_bboxes:  ", len(qs_text_bboxes))
+        #print("Time to load DB and query set:", time()-t0, "s")
+        #print("Size of qs_imgs:         ", len(qs_imgs))
+        #print("Size of qs_gts :         ", len(qs_gts))
+        #print("Size of qs_mask_list:    ", len(qs_mask_list))
+        #print("Size of qs_text_bboxes:  ", len(qs_text_bboxes))
         t0 = time()
 
     # Obtain painting region from images
@@ -151,7 +151,7 @@ def match_paintings(args):
     if args.output_pkl:
         # Save assignments
         assignments = reformat_assignments_to_save(assignments, text_regions[1])
-        assignments = np.array(assignments)[:, :10].tolist()
+        #assignments = assignments[:, :10].tolist()
         to_pkl(assignments, args.output_pkl)
 
     # Save text bounding boxes
