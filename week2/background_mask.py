@@ -217,7 +217,6 @@ def removal_bg_text(qs_imgs, p_bg_masks, p_bg_annotations, p_text_annotations, m
 def removal_text(qs_imgs, p_text_annotations, method_matching):
     resulting_images = []
     if method_matching == "CBHC" or method_matching == "CBHCM":
-        #TODO: RECTANGuLAR CROPS + SYNTHESIZE IN TEXT REGION
         for i in range(len(p_text_annotations)):
             bbox_text = p_text_annotations[i][0]
             bbox_text = [bbox_text[1], bbox_text[0], bbox_text[3], bbox_text[2]]

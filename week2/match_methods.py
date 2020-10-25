@@ -123,7 +123,7 @@ def celled_2dhist(img, cells=[16, 16]):
     
     return np.array(descriptor).reshape(-1)
 
-def celled_2dhist_multiresolution(img, cells=[[1,1],[2,2],[4,4],[8,8],[16, 16]]):
+def celled_2dhist_multiresolution(img, cells=[[6,6],[9,9]]):
     """ Divide image in cells and compute the 2d histogram in another color space.
             cells: Cell grid size (divides the image into [nxm] cells if cells=[n,m])
         returns: Image descriptor (np.array)

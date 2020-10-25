@@ -74,7 +74,6 @@ def match_paintings(args):
         print("DEBUGGING")
         # Convert list of images into list of list of images (as without masking there will be a single painting, 
         # we just have to add a list structure with one image)
-        # TODO: Matrix of 1 (All white) of the size the image. (but it's bool)
         masked_regions = [[[np.ones((image.shape[0], image.shape[1])).astype(bool)] for image in qs_imgs], \
                           [[[0, 0, image.shape[0], image.shape[1]]] for image in qs_imgs], \
                           [[np.ones((image.shape[0], image.shape[1])).astype(bool)] for image in qs_imgs]]
