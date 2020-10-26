@@ -34,12 +34,6 @@ def rgb2gray(img):
 
     return gray_image
 
-
-def rgb2gray2(img):
-    gray_image = img.dot([0.07, 0.72, 0.21])
-
-    return gray_image
-
 # RETURN: An image with its gradient in X dimension
 def gradientX (img):
     return cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=7)
