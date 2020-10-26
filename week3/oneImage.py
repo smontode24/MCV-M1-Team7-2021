@@ -145,54 +145,45 @@ if __name__ == "__main__":
 
     cv_gradX_1_bw = gradientX(img1_bw)
     cv_gradY_1_bw = gradientY(img1_bw)
-    # Get square root of sum of squares
     cv_sobel_1_bw = np.hypot(cv_gradX_1_bw, cv_gradY_1_bw)
 
     cv_gradX_2_bw = gradientX(img2_bw)
     cv_gradY_2_bw = gradientY(img2_bw)
-    # Get square root of sum of squares
     cv_sobel_2_bw = np.hypot(cv_gradX_2_bw, cv_gradY_2_bw)
 
     cv_gradX_m2_bw = gradientX(msk2_bw)
     cv_gradY_m2_bw = gradientY(msk2_bw)
-    # Get square root of sum of squares
     cv_sobel_m2_bw = np.hypot(cv_gradX_m2_bw, cv_gradY_m2_bw)
 
     # Gradient of Blur @ 5 - RGB
     gradX_2_5 = gradientX(blurred_img2)
     gradY_2_5 = gradientY(blurred_img2)
-    # Get square root of sum of squares
     sobel_2_5 = np.hypot(gradX_2_5, gradY_2_5)
 
     # Gradient of Blur @ 11 - RGB
     gradX_2_11 = gradientX(blurred_img2_11)
     gradY_2_11 = gradientY(blurred_img2_11)
-    # Get square root of sum of squares
     sobel_2_11 = np.hypot(gradX_2_11, gradY_2_11)
 
     # Gradient of Blur @ 75 - RGB
     gradX_2_75 = gradientX(blurred_img2_75)
     gradY_2_75 = gradientY(blurred_img2_75)
-    # Get square root of sum of squares
     sobel_2_75 = np.hypot(gradX_2_75, gradY_2_75)
 
     ## BW BLURRED GRADIENTS
     # Gradient of Blur @ 5 - BW
     gradX_2_5_bw = gradientX(blurred_img2_bw)
     gradY_2_5_bw = gradientY(blurred_img2_bw)
-    # Get square root of sum of squares
     sobel_2_5_bw = np.hypot(gradX_2_5_bw, gradY_2_5_bw)
 
     # Gradient of Blur @ 11 - BW
     gradX_2_11_bw = gradientX(blurred_img2_11_bw)
     gradY_2_11_bw = gradientY(blurred_img2_11_bw)
-    # Get square root of sum of squares
     sobel_2_11_bw = np.hypot(gradX_2_11_bw, gradY_2_11_bw)
 
     # Gradient of Blur @ 75 - BW
     gradX_2_75_bw = gradientX(blurred_img2_75_bw)
     gradY_2_75_bw = gradientY(blurred_img2_75_bw)
-    # Get square root of sum of squares
     sobel_2_75_bw = np.hypot(gradX_2_75_bw, gradY_2_75_bw)
 
     # Apply a Gradient X and Y to the SOBEL GRADIENT OF THE IMAGE
