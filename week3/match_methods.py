@@ -129,6 +129,7 @@ def painting_matching_ml(imgs, db_imgs, method_list, text_masks, metrics, weight
     return top_k_matches
 
 #def obtain_descriptor
+#def compare():
 
 def remove_frame(img):
     """ Remove frame from painting (arbitrarly ~5% of the image on each side) -> Helps in getting better MAP """

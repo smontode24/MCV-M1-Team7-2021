@@ -37,7 +37,7 @@ def parse_input_args():
                         help="matching measures [l1_dist, l2_dist, js_div, hellinger, levensthein]")
     parser.add_argument("-rm", "--retrieval_method", default="CBHC",
                         help="which method to use for painting retrieval")
-    parser.add_argument("-mm", "--masking_method", default="PBM",
+    parser.add_argument("-mm", "--masking_method", default="ES",
                         help="which method to use for painting retrieval")
     parser.add_argument("-tm", "--text_method", default="SM",
                         help="which method to use for text masking")
