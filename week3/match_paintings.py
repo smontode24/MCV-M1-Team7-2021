@@ -33,7 +33,7 @@ def parse_input_args():
     parser.add_argument("--output_mask", type=str,
                         help="output folder to save predicted masks")
     parser.add_argument("--matching_measure", type=str, default="l1_dist",
-                        help="matching measures [l1_dist, l2_dist, js_div, hellinger]")
+                        help="matching measures [l1_dist, l2_dist, js_div, hellinger, levensthein]")
     parser.add_argument("-rm", "--retrieval_method", default="CBHC",
                         help="which method to use for painting retrieval")
     parser.add_argument("-mm", "--masking_method", default="PBM",

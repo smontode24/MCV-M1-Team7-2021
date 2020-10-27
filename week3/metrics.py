@@ -78,6 +78,7 @@ MEASURES = {
     "l1_dist": l1_dist,
     "hellinger": hellinger_kernel,
     "js_div": js_div
+    "levensthein": levensthein
 }
 
 def get_measure(name):
