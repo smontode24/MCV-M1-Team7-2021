@@ -203,7 +203,7 @@ def mask_metrics(mask_predictions, mask_gts):
 def text_mIoU(predictions, gts):
     return mIoU(predictions, gts)
 
-def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes, masked_regions=None, masked_boxes=None):
+def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes, masked_regions=None, masked_boxes=None, text_mask=None):
     """ Sort annotations and predictions by bounding boxes close to the left-top corner """
     new_qs_gts_matching = []
     new_qs_gts_bboxes = []
@@ -213,7 +213,9 @@ def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes
         new_masked_regions = []
     if masked_boxes != None:
         new_masked_boxes = []
-    
+    if text_mask != None:
+        new_text_mask = []
+
     for i in range(len(qs_gts_matching)):
         num_paintings = len(qs_gts_matching[i][0])
         if num_paintings > 1 and len(pred_bboxes[i]) > 1:
@@ -231,11 +233,13 @@ def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes
                 if masked_regions != None:
                     new_masked_regions.append([masked_regions[i][1], masked_regions[i][0]])
                     new_masked_boxes.append([masked_boxes[i][1], masked_boxes[i][0]])
+                    new_text_mask.append([text_mask[i][1], text_mask[i][0]])
                 new_pred_bboxes.append([pred_bboxes[i][1], pred_bboxes[i][0]])
             else:
                 if masked_regions != None:
                     new_masked_regions.append(masked_regions[i])
                     new_masked_boxes.append(masked_boxes[i])
+                    new_text_mask.append(text_mask[i])
                 new_pred_bboxes.append(pred_bboxes[i])
             
         else:
@@ -243,6 +247,7 @@ def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes
             if masked_regions != None:
                 new_masked_regions.append(masked_regions[i])
                 new_masked_boxes.append(masked_boxes[i])
+                new_text_mask.append(text_mask[i])
             new_qs_gts_bboxes.append(qs_gts_bboxes[i])
             new_pred_bboxes.append(pred_bboxes[i])
 
@@ -250,10 +255,11 @@ def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes
     if masked_regions != None:
         result.append(new_masked_regions)
         result.append(new_masked_boxes)
+        result.append(new_text_mask)
 
     return result
 
-def sort_predictions_no_gt(pred_bboxes, masked_regions=None, masked_boxes=None):
+def sort_predictions_no_gt(pred_bboxes, masked_regions=None, masked_boxes=None, text_mask=None):
     """ Sort annotations and predictions by bounding boxes close to the left-top corner """
     new_pred_bboxes = []
 
@@ -261,6 +267,8 @@ def sort_predictions_no_gt(pred_bboxes, masked_regions=None, masked_boxes=None):
         new_masked_regions = []
     if masked_boxes != None:
         new_masked_boxes = []
+    if text_mask != None:
+        new_text_mask = []
     
     for i in range(len(pred_bboxes)):
         if len(pred_bboxes[i]) > 1:
@@ -270,22 +278,27 @@ def sort_predictions_no_gt(pred_bboxes, masked_regions=None, masked_boxes=None):
                 if masked_regions != None:
                     new_masked_regions.append([masked_regions[i][1], masked_regions[i][0]])
                     new_masked_boxes.append([masked_boxes[i][1], masked_boxes[i][0]])
+                    new_text_mask.append([text_mask[i][1], text_mask[i][0]])
                 new_pred_bboxes.append([pred_bboxes[i][1], pred_bboxes[i][0]])
             else:
                 if masked_regions != None:
                     new_masked_regions.append(masked_regions[i])
                     new_masked_boxes.append(masked_boxes[i])
+                    new_text_mask.append(text_mask[i])
                 new_pred_bboxes.append(pred_bboxes[i])
             
         else:
+            new_pred_bboxes.append(pred_bboxes[i])
             if masked_regions != None:
                 new_masked_regions.append(masked_regions[i])
                 new_masked_boxes.append(masked_boxes[i])
-            
+                new_text_mask.append(text_mask[i])
+
     result = [new_pred_bboxes]
     if masked_regions != None:
         result.append(new_masked_regions)
         result.append(new_masked_boxes)
+        result.append(new_text_mask)
 
     return result
 

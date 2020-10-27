@@ -58,6 +58,8 @@ def match_paintings(args):
     db_imgs, db_annotations = load_db(path.join(args.ds_path, args.db_path))
     qs_imgs, qs_gts, qs_mask_list, qs_text_bboxes = load_query_set(path.join(args.ds_path, args.qs_path))
 
+    # TODO: Remove noise (e.g., use median filter k=7)
+
     if isDebug():
         #print("Time to load DB and query set:", time()-t0, "s")
         #print("Size of qs_imgs:         ", len(qs_imgs))
@@ -69,12 +71,12 @@ def match_paintings(args):
     # Obtain painting region from images
     if args.masking:
         # Obtain masks for the paintings
-        masked_regions = bg_mask(qs_imgs, args.masking_method)
+        masked_regions, mask_bboxes, separated_bg_masks = bg_mask(qs_imgs, args.masking_method)
     else:
         print("DEBUGGING")
         # Convert list of images into list of list of images (as without masking there will be a single painting, 
         # we just have to add a list structure with one image)
-        masked_regions = [[[np.ones((image.shape[0], image.shape[1])).astype(bool)] for image in qs_imgs], \
+        masked_regions, mask_bboxes, separated_bg_masks = [[[np.ones((image.shape[0], image.shape[1])).astype(bool)] for image in qs_imgs], \
                           [[[0, 0, image.shape[0], image.shape[1]]] for image in qs_imgs], \
                           [[np.ones((image.shape[0], image.shape[1])).astype(bool)] for image in qs_imgs]]
 
@@ -83,10 +85,10 @@ def match_paintings(args):
 
     if args.text_removal:
         # Crop paintings rectangularly to later extract text
-        cropped_qs_imgs = crop_painting_for_text(qs_imgs, masked_regions[1])
+        cropped_qs_imgs = crop_painting_for_text(qs_imgs, mask_bboxes)
 
         # Compute for each painting its text segmentation
-        text_regions = estimate_text_mask(cropped_qs_imgs, masked_regions[1], args.text_method, qs_imgs)
+        text_masks, text_regions = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
 
     # Perform painting matching
     t0 = time()
@@ -94,26 +96,28 @@ def match_paintings(args):
     # Clear bg and text
     if args.text_removal and args.masking:
         if type(qs_gts) == list: # Reorder both predictions and grountruths: left-right and top-bottom
-            bg_reord = sort_annotations_and_predictions(qs_gts, qs_text_bboxes, text_regions[1], masked_regions=masked_regions[2], masked_boxes=masked_regions[1])
-            qs_gts, qs_text_bboxes, text_regions[1], masked_regions[2], masked_regions[1] = bg_reord
+            bg_reord = sort_annotations_and_predictions(qs_gts, qs_text_bboxes, text_regions, masked_regions=separated_bg_masks, masked_boxes=mask_bboxes, text_mask=text_masks)
+            qs_gts, qs_text_bboxes, text_regions, separated_bg_masks, mask_bboxes, text_masks = bg_reord
         else: # Reorder only predictions: left-right and top-bottom
-            bg_reord = sort_predictions_no_gt(text_regions[1], masked_regions=masked_regions[2], masked_boxes=masked_regions[1])
+            text_regions, separated_bg_masks, mask_bboxes, text_masks = sort_predictions_no_gt(text_regions, masked_regions=separated_bg_masks, masked_boxes=mask_bboxes, text_mask=text_masks)
         
         # Remove background and text
-        qs_imgs_refined = removal_bg_text(qs_imgs, masked_regions[2], masked_regions[1], text_regions[1], args.retrieval_method)
+        qs_imgs_refined = removal_bg_text(qs_imgs, separated_bg_masks, mask_bboxes, text_regions, args.retrieval_method)
     else:
         # Remove only text
-        qs_imgs_refined = removal_text(qs_imgs, text_regions[1], args.retrieval_method)
+        qs_imgs_refined = removal_text(qs_imgs, text_regions, args.retrieval_method)
 
     # Generate query set assignments
     assignments = painting_matching(qs_imgs_refined, db_imgs, args.retrieval_method, metric=get_measure(args.matching_measure))
-
+    #cropped_text_regions = crop_region(text_masks, mask_bboxes) 
+    #assignments = painting_matching_wmasks(qs_imgs_refined, db_imgs, args.retrieval_method, text_masks, metric=get_measure(args.matching_measure))
+    # painting_matching_wmasks
     print("Matching in", time()-t0,"s")
 
     # If query set annotations are available, evaluate
     # Evalute mIoU
     if qs_text_bboxes != None:
-        mIoU = text_mIoU(text_regions[1], qs_text_bboxes) # Predicted bboxes / groundtruth bboxes
+        mIoU = text_mIoU(text_regions, qs_text_bboxes) # Predicted bboxes / groundtruth bboxes
         if np.isnan(mIoU):  # Check if do I have some results or not
             print("Hey, I shouldn't be here: what is the sign used for empty texts??")
         else:               # show the text found
@@ -129,7 +133,7 @@ def match_paintings(args):
         #        cv2.imshow("diff", masked_regions[0][i]-qs_mask_list[i])
         #        cv2.waitKey(0)
         
-        pre, rec, acc, f1 = mask_metrics(masked_regions[0], qs_mask_list)
+        pre, rec, acc, f1 = mask_metrics(masked_regions, qs_mask_list)
 
         print("Precision", pre)
         print("Recall", rec)
@@ -153,16 +157,16 @@ def match_paintings(args):
     # Save to pkl file if necessary
     if args.output_pkl:
         # Save assignments
-        assignments = reformat_assignments_to_save(assignments, text_regions[1])
+        assignments = reformat_assignments_to_save(assignments, text_regions)
         to_pkl(assignments, args.output_pkl)
 
     # Save text bounding boxes
     if args.opkl_text:
-        to_pkl(text_regions[1], args.opkl_text)
+        to_pkl(text_regions, args.opkl_text)
 
     # Save mask images if necessary
     if args.output_mask:
-        save_masks(masked_regions[0], args.output_mask)
+        save_masks(masked_regions, args.output_mask)
 
 if __name__ == "__main__":
     parsed_args = parse_input_args()

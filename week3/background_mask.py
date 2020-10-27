@@ -8,10 +8,10 @@ from tqdm import tqdm
 
 def bg_mask(query_imgs, method): 
     """ Obtain a mask for each image in the list of images query_img. The method will be determined by the passed method argument.
-    Available methods are: "CBHS" and "PBM". 
+    Available methods are: "PBM". 
         params: 
             query_imgs: List of images of the query set
-            method: ["CBHS", "PBM"]
+            method: ["PBM"]
         returns:
         Returns 3 elements:
             - List of masks [2D images with 1 channel]. A pixel = 0 means background, and pixel = 255 painting
@@ -170,7 +170,7 @@ def check_no_iou(mask1, mask2):
     bbox1, bbox2 = get_bbox(mask1), get_bbox(mask2)
     return bb_intersection_over_union(bbox1, bbox2) < 1e-6
 
-def compute_mask_gaussian_HSL(img, margin, threshold=0.000001):
+def compute_mask_gaussian_HSL(img, margin, threshold=0.00001):
     h_m, w_m = int(img.shape[0]*margin), int(img.shape[1]*margin)
 
     # Compute mean and standard deviation for each channel separately
@@ -245,6 +245,15 @@ def removal_text(qs_imgs, p_text_annotations, method_matching):
             resulting_images.append([cropped_img[mask]])
 
     return resulting_images
+
+def crop_region(text_masks, mask_bboxes):
+    cropped_text_masks = []
+    for p_masks, box_masks in zip(text_masks, mask_bboxes):
+        for p_mask, box_mask in zip(p_masks, box_masks):
+            box_mask = box_mask[p_mask[0]:p_mask[2], p_mask[1]:p_mask[3]]
+            cropped_text_masks.append([box_mask])
+
+    return cropped_text_masks
 
 PBM = "PBM"
 METHODS = [PBM]

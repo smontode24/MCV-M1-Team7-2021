@@ -21,7 +21,8 @@ def load_db(db_path):
     Returns = [list of images, list of labels] """
     img_list = load_images(db_path)
     labels = list(range(len(img_list)))
-    return img_list, labels
+    #authors = read_author_db(db_path)
+    return img_list, labels#, authors #TODO: Fix reading with UTF-8 (ç)
 
 def load_gt_annotations(anno_path):
     """ Load annotations from path for query set. List of groundtruths [7, 2, 3, ..., 10] """
@@ -41,6 +42,22 @@ def load_pkl(anno_path):
         return annotations
     else:
         return None  
+
+def read_author_db(db_path):
+    db_authors = []
+    file_list = glob.glob(os.path.join(db_path, "*.txt"))
+    for f in file_list:
+        fh = open(f, "r")
+        content_unprocessed = fh.readlines()[0]
+        if content_unprocessed == "\n":
+            content = "Unknown"
+        else:
+            content = ",".join(content_unprocessed.split(")")[-2].split(",")[1:])[2:-1]
+        print(content_unprocessed, "->", content)
+        db_authors.append(content)
+        fh.close()
+
+    return db_authors
 
 def mask_imgs_to_single_channel(img_list):
     """ Convert 3 channel mask image to single channel. """
