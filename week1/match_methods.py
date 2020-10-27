@@ -2,6 +2,7 @@ import numpy as np
 from metrics import *
 import cv2
 from debug_utils import *
+from tqdm import tqdm
 
 def painting_matching(imgs, db_imgs, method_name, metric=js_div, splits=30, max_rank=10): 
     """ Obtain query images matches.
@@ -15,14 +16,13 @@ def painting_matching(imgs, db_imgs, method_name, metric=js_div, splits=30, max_
             Top k matches for each image of the query set in the database
     """
     matching_method = get_method(method_name)
-
     db_img_splits = [i*len(db_imgs)//splits for i in range(splits-1)]
     
     scores = []
     query_descriptors = np.array([matching_method(img) for img in imgs])
     print("Starting db extraction + matching")
     if splits > 1:
-        for split in range(splits-2):
+        for split in tqdm(range(splits-2)):
             db_descriptors = np.array([matching_method(db_img) for db_img in db_imgs[db_img_splits[split]:db_img_splits[split+1]]])
             scores.append(metric(query_descriptors, db_descriptors))
         
@@ -137,13 +137,39 @@ def twod_hist(img):
     
     return np.array(descriptor).reshape(-1)
 
-OPTIONS = ["onedcelled", "CBHC", "1dhist", "2dhist"]
+def celled_2dhist_multiresolution(img, cells=[[6,6],[9,9]]):
+    """ Divide image in cells and compute the 2d histogram in another color space.
+            cells: Cell grid size (divides the image into [nxm] cells if cells=[n,m])
+        returns: Image descriptor (np.array)
+    """
+    img, p1, p2 = remove_frame(img)
+
+    descriptor = []
+    w,h = img.shape[:2]
+    for cell in cells:
+        w_ranges = [(i*w)//cell[0] for i in range(cell[0])]+[-1]
+        h_ranges = [(i*h)//cell[1] for i in range(cell[1])]+[-1]
+
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
+        
+        for i in range(cell[0]):
+            for j in range(cell[1]):
+                cr = img[w_ranges[i]:w_ranges[i+1], h_ranges[j]:h_ranges[j+1], 1].reshape(-1)
+                cb = img[w_ranges[i]:w_ranges[i+1], h_ranges[j]:h_ranges[j+1], 2].reshape(-1)
+                vals = np.histogram2d(cr, cb, bins=(np.arange(0, 255, 10), np.arange(0, 255, 10)))[0]
+                normalized_hist = vals/vals.sum()
+                descriptor.append(normalized_hist)
+    
+    return np.array(descriptor).reshape(-1)
+
+OPTIONS = ["onedcelled", "CBHC", "1dhist", "2dhist", "CBHCM"]
 
 METHOD_MAPPING = {
     OPTIONS[0]: celled_1dhist,
     OPTIONS[1]: celled_2dhist,
     OPTIONS[2]: oned_hist,
-    OPTIONS[3]: twod_hist
+    OPTIONS[3]: twod_hist,
+    OPTIONS[4]: celled_2dhist_multiresolution
 }
 
 def get_method(method):

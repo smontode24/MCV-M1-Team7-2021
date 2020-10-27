@@ -69,7 +69,7 @@ def apply_mask(query_imgs, masks, method):
     
     return resulting_imgs
 
-def pbm_segmentation(img, margin=0.02, threshold=0.000001):
+def pbm_segmentation(img, margin=0.01, threshold=0.000001):
     """ Probability-based segmentation. Model the background with a multivariate gaussian distribution. 
             img: Image to be segmented
             margin: Part of image being certainly part of the background 
@@ -82,11 +82,12 @@ def pbm_segmentation(img, margin=0.02, threshold=0.000001):
     
     # Compute mask based on connected components
     results = mask_segmentation_cc(img, mask)
+
     return results
 
 def mask_segmentation_cc(img, mask):
     
-    kernel = np.ones((img.shape[0]//50, img.shape[1]//50), np.uint8)
+    kernel = np.ones((img.shape[0]//55, img.shape[1]//55), np.uint8)
     mask = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_CLOSE, kernel, borderValue=0)
 
     nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(mask.astype(np.uint8), connectivity=8)
@@ -105,6 +106,9 @@ def mask_segmentation_cc(img, mask):
     bc[output == idxs[0]] = 255
     bc = create_convex_painting(mask, bc)
 
+    if len(bc[bc!=0]) == 0:
+        return [np.zeros_like(mask), [[0,0,img.shape[0],img.shape[1]]], [np.ones_like(mask)]]
+
     if len(idxs) > 1:
         sbc = np.zeros(output.shape)
         sbc[output == idxs[1]] = 255
@@ -120,17 +124,18 @@ def mask_segmentation_cc(img, mask):
             bboxes.append(get_bbox(sbc))
             resulting_masks = np.logical_or(resulting_masks==255, sbc==255).astype(np.uint8)*255
             splitted_resulting_masks.append(sbc)
-
+    
     return resulting_masks, bboxes, splitted_resulting_masks
 
 def create_convex_painting(mask, component_mask):
     kernel = np.ones((5, 5), np.uint8)
+    
     component_mask = cv2.morphologyEx(component_mask, cv2.MORPH_CLOSE, kernel, borderValue=0)
     contours, hierarchy = cv2.findContours((component_mask == 255).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     mask = np.zeros_like(mask).astype(np.uint8)
     polished_mask = cv2.fillPoly(mask, contours, 255).astype(np.uint8)
     a = polished_mask.copy()
-
+    
     p = int(max(mask.shape[0]/8, mask.shape[1]/8))
     polished_mask = cv2.copyMakeBorder(src=polished_mask, top=p, bottom=p, left=p, right=p, borderType=cv2.BORDER_CONSTANT, value=0) 
     size1, size2 = int(mask.shape[0]*1/32),int(mask.shape[1]*1/32)
@@ -192,6 +197,62 @@ def compute_mask_gaussian_HSL(img, margin, threshold=0.00001):
     mask = stats.norm.pdf(img[:,:,0], l_mean, l_std)*stats.norm.pdf(img[:,:,1], a_mean, a_std)*stats.norm.pdf(img[:,:,2], b_mean, b_std) < threshold
 
     return mask
+
+def remove_bg(img):
+    """
+    This function removes the background from an input image
+    Args:
+           img: image
+    Returns:
+           filled: binary image of the background mask
+    """
+    sx, sy = np.shape(img)[:2]
+    datatype = np.uint8
+
+    kernel = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]).astype(datatype)
+
+    kernel = np.ones((7,7), dtype=np.uint8)
+    # We are going to use the saturation channel from HSV
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)[:, :, 1]
+
+    edges = cv2.Canny(img, 30, 30)
+
+    # Closing to ensure edges are continuous
+    edges = cv2.dilate(edges, kernel, iterations=1)
+    mask = cv2.erode(edges, kernel, iterations=1)
+    nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(mask.astype(np.uint8), connectivity=8)
+    sizes = stats[:, -1]
+
+    top_two_conn_comp_idx = sizes.argsort()
+    top_two_conn_comp_idx = top_two_conn_comp_idx[top_two_conn_comp_idx!=0]
+    if len(top_two_conn_comp_idx) > 1:
+        top_two_conn_comp_idx = top_two_conn_comp_idx[[-2,-1]][::-1]
+    else:
+        top_two_conn_comp_idx = top_two_conn_comp_idx[[-1]][::-1]
+    
+    idxs = [idx for idx in top_two_conn_comp_idx]
+
+    bc = np.zeros(output.shape)
+    bc[output == idxs[0]] = 255
+    bc = create_convex_painting(mask, bc)
+
+    if len(idxs) > 1:
+        sbc = np.zeros(output.shape)
+        sbc[output == idxs[1]] = 255
+        sbc = create_convex_painting(mask, sbc)
+
+    bboxes = [get_bbox(bc)]
+    resulting_masks = bc
+    splitted_resulting_masks = [bc]
+
+    # Second painting if first one does not take most part + more or less a rectangular shape + no IoU
+    if len(idxs) > 1:
+        if not takes_most_part_image(bc) and regular_shape(sbc) and check_no_iou(bc, sbc):
+            bboxes.append(get_bbox(sbc))
+            resulting_masks = np.logical_or(resulting_masks==255, sbc==255).astype(np.uint8)*255
+            splitted_resulting_masks.append(sbc)
+    
+    return splitted_resulting_masks
 
 def removal_bg_text(qs_imgs, p_bg_masks, p_bg_annotations, p_text_annotations, method_matching):
     resulting_images = []

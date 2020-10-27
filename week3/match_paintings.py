@@ -10,6 +10,7 @@ from evaluation.retrieval_evaluation import *
 from time import time
 from io_utils import *
 from debug_utils import *
+from filtering import *
 import numpy as np
 import cv2
 
@@ -40,6 +41,10 @@ def parse_input_args():
                         help="which method to use for painting retrieval")
     parser.add_argument("-tm", "--text_method", default="SM",
                         help="which method to use for text masking")
+    parser.add_argument("-ft", "--filter_type", default="median",
+                        help="denoising technique")
+    parser.add_argument("-rmm", nargs="+", default=["OCR", "CH"], # Will substitute rm
+                        help="List of methods to use for comparison [OCR:Author name, CH:Color histogram, HOG, LBP, ...]")
     parser.add_argument("-d", "--debug", default=0, type=int,
                        help="shows images and some steps for debugging (0 no, 1 yes)")
 
@@ -55,10 +60,11 @@ def match_paintings(args):
         t0 = time()
     
     # Load DB
-    db_imgs, db_annotations = load_db(path.join(args.ds_path, args.db_path))
+    db_imgs, db_annotations, db_authors = load_db(path.join(args.ds_path, args.db_path))
     qs_imgs, qs_gts, qs_mask_list, qs_text_bboxes = load_query_set(path.join(args.ds_path, args.qs_path))
 
-    # TODO: Remove noise (e.g., use median filter k=7)
+    # Remove noise (e.g., use median filter k=7)
+    qs_imgs = denoise_images(qs_imgs, "median")
 
     if isDebug():
         #print("Time to load DB and query set:", time()-t0, "s")
@@ -108,9 +114,9 @@ def match_paintings(args):
         qs_imgs_refined = removal_text(qs_imgs, text_regions, args.retrieval_method)
 
     # Generate query set assignments
-    assignments = painting_matching(qs_imgs_refined, db_imgs, args.retrieval_method, metric=get_measure(args.matching_measure))
+    #assignments = painting_matching(qs_imgs_refined, db_imgs, args.retrieval_method, metric=get_measure(args.matching_measure))
     #cropped_text_regions = crop_region(text_masks, mask_bboxes) 
-    #assignments = painting_matching_wmasks(qs_imgs_refined, db_imgs, args.retrieval_method, text_masks, metric=get_measure(args.matching_measure))
+    assignments = painting_matching_wmasks(qs_imgs_refined, db_imgs, args.retrieval_method, text_masks, metric=get_measure(args.matching_measure))
     # painting_matching_wmasks
     print("Matching in", time()-t0,"s")
 

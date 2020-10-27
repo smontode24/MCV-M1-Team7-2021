@@ -84,6 +84,52 @@ def painting_matching_wmasks(imgs, db_imgs, method_name, text_masks, metric=js_d
     top_k_matches = np.argpartition(scores, list(range(max_rank)))[:, :max_rank]
     return top_k_matches
 
+# WIP: Multiple criteria
+def painting_matching_ml(imgs, db_imgs, method_list, text_masks, metrics, weights, splits=30, max_rank=10): 
+    """ Obtain query images matches.
+        Params:
+            - imgs: query set of images [img1, img2,...]
+            - db_imgs: database images
+            - method_list: List of methods: DCT, HOG, OCR, ...
+            - metric: List of similarities for method comparison  
+            - weights: Multiply each method by its importance (i.e. maybe we want to give more importance to HOG than HC)
+            - method_name: method to apply
+            - metric: l1_dist,... (which distance / similarity to use)
+        Returns: 
+            Top k matches for each image of the query set in the database
+    """
+    matching_method = get_method(method_name)
+    tmp_img_format = []
+    tmp_mask_format = []
+    for i in range(len(imgs)):
+        for j in range(len(imgs[i])):
+            tmp_img_format.append(imgs[i][j])
+            tmp_mask_format.append(text_masks[i][j])
+
+    db_img_splits = [i*len(db_imgs)//splits for i in range(splits-1)]
+    
+    scores = []
+    query_descriptors = np.array([mrhm(img, mask) for img, mask in zip(tmp_img_format, tmp_mask_format)])
+    print("Starting db extraction + matching")
+    if splits > 1:
+        for split in tqdm(range(splits-2)):
+            db_descriptors = np.array([mrhm(db_img) for db_img in db_imgs[db_img_splits[split]:db_img_splits[split+1]]])
+            scores.append(metric(query_descriptors, db_descriptors))
+        
+        db_descriptors = np.array([mrhm(db_img) for db_img in db_imgs[db_img_splits[-1]:]])
+        scores.append(metric(query_descriptors, db_descriptors))
+        
+        # concatenate all the results
+        scores = np.concatenate(scores, 1)
+    else:
+        db_descriptors = np.array([mrhm(db_img) for db_img in db_imgs])
+        scores = metric(query_descriptors, db_descriptors)
+    
+    top_k_matches = np.argpartition(scores, list(range(max_rank)))[:, :max_rank]
+    return top_k_matches
+
+#def obtain_descriptor
+
 def remove_frame(img):
     """ Remove frame from painting (arbitrarly ~5% of the image on each side) -> Helps in getting better MAP """
     m = 0.05
@@ -236,11 +282,9 @@ def mrhm(img, mask=None, num_blocks=16):
     """ Two dimensional histogram of images. 
         returns: Image descriptor (np.array)
     """
-
-    # Reverse mask
     
     if mask is not None:
-        mask = (mask==0).astype(np.uint8)*255
+        mask = (mask!=0).astype(np.uint8)*255
         x,y,w,h = 0,0,img.shape[1],img.shape[0]
         block_h = int(np.ceil(h / num_blocks))
         block_w = int(np.ceil(w / num_blocks))
@@ -262,7 +306,8 @@ def mrhm(img, mask=None, num_blocks=16):
                 mask_block = None
 
             block_feature = cv2.calcHist([image_block],[0,1,2], mask_block, [2,24,24], [0, 256, 0, 256, 0, 256])
-            features.extend(block_feature)
+            block_feature = cv2.normalize(block_feature, block_feature)
+            features.extend(block_feature.flatten())
 
     return np.stack(features).flatten()
     
@@ -279,3 +324,6 @@ METHOD_MAPPING = {
 
 def get_method(method):
     return METHOD_MAPPING[method]
+
+
+#######
