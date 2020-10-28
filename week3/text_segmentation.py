@@ -15,6 +15,7 @@ def estimate_text_mask(cropped_imgs, painting_bboxes, method, qs_images):
     text_segm = get_method(method)
     cropped_text_mask = []
     bboxes_mask = []
+    relative_boxes = []
     bbox_show = []
 
     print("Extracting text boxes...")
@@ -22,6 +23,7 @@ def estimate_text_mask(cropped_imgs, painting_bboxes, method, qs_images):
         bboxes_paintings = []
         cropped_text_mask_paintings = []
         bbox_show_paintings = []
+        relative_boxes_paintings = []
 
         for painting, painting_bbox in zip(paintings, pantings_bboxes):
             result = text_segm(painting)
@@ -29,6 +31,7 @@ def estimate_text_mask(cropped_imgs, painting_bboxes, method, qs_images):
             bbox_show_paintings.append(result[1])
 
             bbox_relative = result[1]
+            relative_boxes_paintings.append(bbox_relative.copy())
             bbox_relative = [bbox_relative[0]+painting_bbox[1], bbox_relative[1]+painting_bbox[0], \
                              bbox_relative[2]+painting_bbox[1], bbox_relative[3]+painting_bbox[0]]
             bboxes_paintings.append(bbox_relative)
@@ -36,6 +39,7 @@ def estimate_text_mask(cropped_imgs, painting_bboxes, method, qs_images):
         cropped_text_mask.append(cropped_text_mask_paintings)
         bboxes_mask.append(bboxes_paintings)
         bbox_show.append(bbox_show_paintings)
+        relative_boxes.append(relative_boxes_paintings)
 
     if isDebug():
         # Show images
@@ -52,7 +56,7 @@ def estimate_text_mask(cropped_imgs, painting_bboxes, method, qs_images):
                 j += 1
             i += 1
 
-    return [cropped_text_mask, bboxes_mask]
+    return [cropped_text_mask, bboxes_mask, relative_boxes]
 
 def crop_painting_for_text(imgs, bboxes):
     """ Rectangular paintings for images.
@@ -220,15 +224,16 @@ def best_segmentation(img):
         x0,y0,x1,y1 = x, y, x+w, y+h 
         score = compute_score_mask2(text_mask, [x0,y0,x1,y1])
         if (w / h > 2) and (w / h < 30) and (w > (0.1 * text_mask.shape[0])) and score > largest_score:
-            x_box_2, y_box_2, w_box_2, h_box_2 = x_box_1, y_box_1, w_box_1, h_box_1
             x_box_1, y_box_1, w_box_1, h_box_1 = x, y, w, h
             largest_score = score
 
     mask = np.zeros((img.shape[0],img.shape[1])).astype(np.uint8)
-    pos = [x_box_1, y_box_1, x_box_1 + w_box_1 , y_box_1 + h_box_1]
+    
+    w_e, h_e = int((w_box_1)*0.1), int((h_box_1)*0.3) # Extra height to account for errors
+
+    pos = [x_box_1-w_e, y_box_1-h_e, x_box_1 + w_box_1 + w_e, y_box_1 + h_box_1 + h_e]
     mask[max(pos[1],0):min(pos[3], mask.shape[0]), max(pos[0],0):min(pos[2], mask.shape[1])] = 255
     return mask, pos
-
 
 ####
 ##

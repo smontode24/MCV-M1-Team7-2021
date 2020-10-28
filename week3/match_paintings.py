@@ -7,6 +7,7 @@ from text_segmentation import *
 from metrics import *
 from evaluation.mask_evaluation import *
 from evaluation.retrieval_evaluation import *
+from text_recognition import extract_text_from_imgs
 from time import time
 from io_utils import *
 from debug_utils import *
@@ -35,6 +36,8 @@ def parse_input_args():
                         help="output folder to save predicted masks")
     parser.add_argument("--matching_measure", type=str, default="l1_dist",
                         help="matching measures [l1_dist, l2_dist, js_div, hellinger, levensthein]")
+    parser.add_argument("--matching_measures", type=str, nargs='+', default=["l1_dist"],
+                        help="matching measures [l1_dist, l2_dist, js_div, hellinger, levensthein]")
     parser.add_argument("-rm", "--retrieval_method", default="CBHC",
                         help="which method to use for painting retrieval")
     parser.add_argument("-mm", "--masking_method", default="ES",
@@ -43,8 +46,10 @@ def parse_input_args():
                         help="which method to use for text masking")
     parser.add_argument("-ft", "--filter_type", default="median",
                         help="denoising technique")
-    parser.add_argument("-rmm", nargs="+", default=["OCR", "CH"], # Will substitute rm
+    parser.add_argument("-rmm", type=str, nargs="+", default=["text", "CH"], # Will substitute rm
                         help="List of methods to use for comparison [OCR:Author name, CH:Color histogram, HOG, LBP, ...]")
+    parser.add_argument("-w", "--weights", default=[1], # Will substitute rm
+                        help="Weight of each method to use")
     parser.add_argument("-d", "--debug", default=0, type=int,
                        help="shows images and some steps for debugging (0 no, 1 yes)")
 
@@ -94,7 +99,10 @@ def match_paintings(args):
         cropped_qs_imgs = crop_painting_for_text(qs_imgs, mask_bboxes)
 
         # Compute for each painting its text segmentation
-        text_masks, text_regions = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
+        text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
+
+        # Text extractor
+        painting_text = extract_text_from_imgs(cropped_qs_imgs, relative_boxes)
 
     # Perform painting matching
     t0 = time()
@@ -114,9 +122,12 @@ def match_paintings(args):
         qs_imgs_refined = removal_text(qs_imgs, text_regions, args.retrieval_method)
 
     # Generate query set assignments
-    #assignments = painting_matching(qs_imgs_refined, db_imgs, args.retrieval_method, metric=get_measure(args.matching_measure))
+    assignments = painting_matching(qs_imgs_refined, db_imgs, args.retrieval_method, metric=get_measure(args.matching_measure))
     #cropped_text_regions = crop_region(text_masks, mask_bboxes) 
-    assignments = painting_matching_wmasks(qs_imgs_refined, db_imgs, args.retrieval_method, text_masks, metric=get_measure(args.matching_measure))
+    #assignments = painting_matching_ml(qs_imgs_refined, db_imgs, args.retrieval_method, text_masks, metric=get_measure(args.matching_measure))
+    #metrics_f = [get_measure(m) for m in args.matching_measures]
+    #assignments = painting_matching_ml(qs_imgs_refined, db_imgs, args.rmm, text_masks, painting_text, db_authors, metrics_f, weights=[1,1])
+    #painting_matching_ml(imgs, db_imgs, method_list, text_masks, author_text, metrics, weights, splits=30, max_rank=10)
     # painting_matching_wmasks
     print("Matching in", time()-t0,"s")
 

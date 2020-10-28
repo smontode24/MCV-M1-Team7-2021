@@ -71,6 +71,7 @@ def apply_mask(query_imgs, masks, method):
     return resulting_imgs
 
 def edge_segmentation(img):
+    """ Detect edges to create a mask that indicates where the paintings are located """
     sx, sy = np.shape(img)[:2]
     datatype = np.uint8
 
@@ -143,7 +144,7 @@ def pbm_segmentation(img, margin=0.01, threshold=0.000001):
     return results
 
 def mask_segmentation_cc(img, mask):
-    
+    """ Take two biggest connected components from mask, making sure that they do not overlap"""
     kernel = np.ones((img.shape[0]//55, img.shape[1]//55), np.uint8)
     mask = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_CLOSE, kernel, borderValue=0)
 
