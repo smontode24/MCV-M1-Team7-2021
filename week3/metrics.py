@@ -2,12 +2,12 @@ import numpy as np
 from scipy.spatial.distance import cdist
 import cv2
 from debug_utils import *
+import textdistance         # src -> https://github.com/life4/textdistance
 
 """ 
 All these metrics receive two matrices: m1 (mxd), m2 (nxd)
 And returns => distance (mxn) [lower -> more similar]  
 """
-
 def l2_dist(m1, m2):
     """ L2 distance """
     x2 = np.sum(m1**2, axis=1, keepdims=True)
@@ -40,55 +40,50 @@ def js_div(m1, m2):
     
     return np.array(result)
 
-# Comparing two strings by counting minimum number of operations
-# required to transform one string to another
-# seq1 & seq2 are strings to be compared 
-def levensthein(seq1, seq2): # TODO: Substituting characters should not be as expensive as adding/removing
-    #SOURCE: https://stackabuse.com/levenshtein-distance-and-text-similarity-in-python/
-    size_x = len(seq1) + 1
-    size_y = len(seq2) + 1
-    matrix = np.zeros ((size_x, size_y))
-    for x in range(size_x):
-        matrix [x, 0] = x
-    for y in range(size_y):
-        matrix [0, y] = y
+######
+# Text distance metrics
+######
 
-    for x in range(1, size_x):
-        for y in range(1, size_y):
-            if seq1[x-1] == seq2[y-1]:
-                matrix [x,y] = min(
-                    matrix[x-1, y] + 1,
-                    matrix[x-1, y-1],
-                    matrix[x, y-1] + 1
-                )
-            else:
-                matrix [x,y] = min(
-                    matrix[x-1,y] + 1,
-                    matrix[x-1,y-1] + 1,
-                    matrix[x,y-1] + 1
-                )
 
-    #print (matrix)
-    # RETURNS Nº of changes required.
-    # Between "mama" and "papa" == 2
-    return (matrix[size_x - 1, size_y - 1])
-
-def normalized_levensthein(seq1, seq2):
-    """ List of text authors in seq1 and seq2 """
-    scores = np.zeros((len(seq1), len(seq2)))
-    for i, s1 in enumerate(seq1):
-        for j, s2 in enumerate(seq2):
-            scores[i, j] = levensthein(s1, s2)
-            scores[i, j] = scores[i, j]/max(len(s1), len(s2))
-    
+def levensthein(query, db): # TODO: Substituting characters should not be as expensive as adding/removing -> why?
+    # Normalized version of levensthein
+    # query -> list of texts detected on the query images
+    # db -> list of texts of the db 
+    scores = np.zeros((len(query), len(db)))
+    for i, q_text in enumerate(query):
+        for j, db_text in enumerate(db):
+            scores[i,j] = textdistance.levensthein.distance(q_text, db_text)
+            scores[i,j] = scores[i,j] / max(len(db_text), len(db_text))
     return scores
+
+def jaro_winkler(query, db): # also normalized
+    scores = np.zeros((len(query), len(db)))
+    for i, q_text in enumerate(query):
+        for j, db_text in enumerate(db):
+            scores[i,j] = textdistance.jaro_winkler.distance(q_text, db_text)
+            scores[i,j] = scores[i,j] / max(len(db_text), len(db_text))
+    return scores
+
+def ratcliff_obershelp(query, db):
+    # Returns a value between 0 and 1 -> usually 1 means the strings match but in this implementation it means the strings differ
+    scores = np.zeros((len(query), len(db)))
+    for i, q_text in enumerate(query):
+        for j, db_text in enumerate(db):
+            scores[i,j] = textdistance.ratcliff_obershelp.distance(q_text, db_text)
+    return scores
+
 
 MEASURES = {
     "l2_dist": l2_dist,
     "l1_dist": l1_dist,
     "hellinger": hellinger_kernel,
     "js_div": js_div,
-    "levenshtein": normalized_levensthein
+    "levenshtein": levensthein,
+    "jaro_winkler": jaro_winkler,
+    #"smith_waterman": smith_waterman,
+    "ratcliff_obershelp": ratcliff_obershelp,
+
+
 }
 
 def get_measure(name):
