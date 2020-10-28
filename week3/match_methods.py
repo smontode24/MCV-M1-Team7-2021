@@ -3,6 +3,7 @@ from metrics import *
 import cv2
 from debug_utils import *
 from tqdm import tqdm
+from inspect import signature
 
 def painting_matching(imgs, db_imgs, method_name, metric=js_div, splits=30, max_rank=10): 
     """ Obtain query images matches.
@@ -91,10 +92,11 @@ def painting_matching_ml(imgs, db_imgs, method_list, text_masks, author_text, gt
             - imgs: query set of images [img1, img2,...]
             - db_imgs: database images
             - method_list: List of methods: DCT, HOG, OCR, ...
-            - metric: List of similarities for method comparison  
+            - text_masks: Textboxes masks
+            - author_text: Predicted authors in the query set
+            - gt_text: Groundtruths of authors for DB 
+            - metrics: List of similarities for method comparison (e.g., if using "text" and "HC" as methods, according metrics would be: "levenshtein" and "l1_dist")  
             - weights: Multiply each method by its importance (i.e. maybe we want to give more importance to HOG than HC)
-            - method_name: method to apply
-            - metric: l1_dist,... (which distance / similarity to use)
         Returns: 
             Top k matches for each image of the query set in the database
     """
@@ -144,11 +146,20 @@ def extract_descriptors(imgs, descriptor_extractors, descriptor_names, author_te
     """
     descriptor = []
     for descriptor_name, descriptor_extractor in zip(descriptor_names, descriptor_extractors):
-        if descriptor_name == "text":
+        if descriptor_name == "text": # If text, only need to add the processed text in the descriptor
             text_descriptors = []
             for text_description in author_text:
                 text_descriptors.append(text_description)
             descriptor.append(text_descriptors)
+        elif descriptor_name == "HC":
+            if type(text_masks) == list:
+                mask_arg = list(signature(descriptor_extractor).parameters.keys())[1] == "mask"
+                if mask_arg:
+                    descriptor.append(np.stack([descriptor_extractor(img, text_mask) for img, text_mask in zip(imgs, text_masks)]))
+                else:
+                    descriptor.append(np.stack([descriptor_extractor(img) for img in imgs]))
+            else:
+                descriptor.append(np.stack([descriptor_extractor(img) for img in imgs]))
         else:
             descriptor.append(np.stack([descriptor_extractor(img) for img in imgs]))
     return descriptor
@@ -250,7 +261,10 @@ def celled_2dhist(img, cells=[16, 16]):
             normalized_hist = vals/vals.sum()
             descriptor.append(normalized_hist)
     
-    return np.array(descriptor).reshape(-1)
+    # Score between 0 and max(measure(d1, d2))
+    descriptor = np.array(descriptor).reshape(-1)
+    descriptor = descriptor/(cells[0]*cells[1])
+    return descriptor
 
 def celled_2dhist_multiresolution(img, cells=[[6,6],[9,9]]):
     """ Divide image in cells and compute the 2d histogram in another color space.
@@ -328,22 +342,24 @@ def mrhm(img, mask=None, num_blocks=16):
     if mask is not None:
         mask = (mask!=0).astype(np.uint8)*255
         x,y,w,h = 0,0,img.shape[1],img.shape[0]
-        block_h = int(np.ceil(h / num_blocks))
-        block_w = int(np.ceil(w / num_blocks))
+        block_h = h // num_blocks #int(np.ceil(h / num_blocks))
+        block_w = w // num_blocks #int(np.ceil(w / num_blocks))
     else:
         x,y = 0,0
         h,w = img.shape[:2]
-        block_h = int(np.ceil(h / num_blocks))
-        block_w = int(np.ceil(w / num_blocks))
+        block_h = h // num_blocks #int(np.ceil(h / num_blocks))
+        block_w = w // num_blocks #int(np.ceil(w / num_blocks))
         
     img = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
+    w_ranges = [(i*w)//num_blocks for i in range(num_blocks)]+[-1]
+    h_ranges = [(i*h)//num_blocks for i in range(num_blocks)]+[-1]
 
     features = []
-    for i in range(y, y+h, block_h):
-        for j in range(x, x+w, block_w):
-            image_block = img[i:i+block_h, j:j+block_w]
+    for i in range(num_blocks):
+        for j in range(num_blocks):
+            image_block = img[w_ranges[i]:w_ranges[i+1], h_ranges[j]:h_ranges[j+1]]
             if mask is not None:
-                mask_block = mask[i:i+block_h, j:j+block_w]
+                mask_block = mask[w_ranges[i]:w_ranges[i+1], h_ranges[j]:h_ranges[j+1]]
             else:
                 mask_block = None
 
@@ -376,7 +392,7 @@ OPTIONS = [TC, HC]
 
 METHOD_MAPPING_EXTR = {
     OPTIONS[0]: TC,
-    OPTIONS[1]: celled_2dhist_multiresolution
+    OPTIONS[1]: celled_2dhist # mrhm
 }
 
 def get_descriptor_extractor(method):

@@ -78,8 +78,11 @@ def normalized_levensthein(seq1, seq2):
     scores = np.zeros((len(seq1), len(seq2)))
     for i, s1 in enumerate(seq1):
         for j, s2 in enumerate(seq2):
-            scores[i, j] = levensthein(s1, s2)
-            scores[i, j] = scores[i, j]/max(len(s1), len(s2))
+            if len(s1) == 0 and len(s2) == 0:
+                scores[i, j] = 1
+            else:
+                scores[i, j] = levensthein(s1, s2)
+                scores[i, j] = scores[i, j]/max(len(s1), len(s2))
     
     return scores
 

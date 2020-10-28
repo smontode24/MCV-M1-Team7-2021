@@ -36,12 +36,13 @@ def parse_input_args():
                         help="output folder to save predicted masks")
     parser.add_argument("--matching_measure", type=str, default="l1_dist",
                         help="matching measures [l1_dist, l2_dist, js_div, hellinger, levensthein]")
-    parser.add_argument("--matching_measures", type=str, nargs='+', default=["l1_dist"],
-                        help="matching measures [l1_dist, l2_dist, js_div, hellinger, levensthein]")
+    parser.add_argument("--matching_measures", type=str, nargs='+', default=["l1_dist"], 
+                        help="matching measures [l1_dist, l2_dist, js_div, hellinger, levensthein], it must correspond to the measure used in each \
+                              retrieval method.")
     parser.add_argument("-rm", "--retrieval_method", default="CBHC",
                         help="which method to use for painting retrieval")
     parser.add_argument("-mm", "--masking_method", default="ES",
-                        help="which method to use for painting retrieval")
+                        help="which method to use for painting retrieval [ES, PBM]")
     parser.add_argument("-tm", "--text_method", default="SM",
                         help="which method to use for text masking")
     parser.add_argument("-ft", "--filter_type", default="median",
@@ -69,7 +70,7 @@ def match_paintings(args):
     qs_imgs, qs_gts, qs_mask_list, qs_text_bboxes = load_query_set(path.join(args.ds_path, args.qs_path))
 
     # Remove noise (e.g., use median filter k=7)
-    qs_imgs = denoise_images(qs_imgs, "median")
+    #qs_imgs = denoise_images(qs_imgs, "median")
 
     if isDebug():
         #print("Time to load DB and query set:", time()-t0, "s")
@@ -81,8 +82,8 @@ def match_paintings(args):
 
     # Obtain painting region from images
     if args.masking:
-        # Obtain masks for the paintings
-        masked_regions, mask_bboxes, separated_bg_masks = bg_mask(qs_imgs, args.masking_method)
+        # Obtain masks for the paintings. -> Denoise on copy only because it affects text recognition a lot
+        masked_regions, mask_bboxes, separated_bg_masks = bg_mask(denoise_images(qs_imgs, "median"), args.masking_method)
     else:
         print("DEBUGGING")
         # Convert list of images into list of list of images (as without masking there will be a single painting, 
@@ -107,6 +108,8 @@ def match_paintings(args):
     # Perform painting matching
     t0 = time()
 
+    qs_imgs = denoise_images(qs_imgs, "median")
+
     # Clear bg and text
     if args.text_removal and args.masking:
         if type(qs_gts) == list: # Reorder both predictions and grountruths: left-right and top-bottom
@@ -122,13 +125,8 @@ def match_paintings(args):
         qs_imgs_refined = removal_text(qs_imgs, text_regions, args.retrieval_method)
 
     # Generate query set assignments
-    assignments = painting_matching(qs_imgs_refined, db_imgs, args.retrieval_method, metric=get_measure(args.matching_measure))
-    #cropped_text_regions = crop_region(text_masks, mask_bboxes) 
-    #assignments = painting_matching_ml(qs_imgs_refined, db_imgs, args.retrieval_method, text_masks, metric=get_measure(args.matching_measure))
-    #metrics_f = [get_measure(m) for m in args.matching_measures]
-    #assignments = painting_matching_ml(qs_imgs_refined, db_imgs, args.rmm, text_masks, painting_text, db_authors, metrics_f, weights=[1,1])
-    #painting_matching_ml(imgs, db_imgs, method_list, text_masks, author_text, metrics, weights, splits=30, max_rank=10)
-    # painting_matching_wmasks
+    metrics_f = [get_measure(m) for m in args.matching_measures]
+    assignments = painting_matching_ml(qs_imgs_refined, db_imgs, args.rmm, text_masks, painting_text, db_authors, metrics_f, weights=[1,1])
     print("Matching in", time()-t0,"s")
 
     # If query set annotations are available, evaluate

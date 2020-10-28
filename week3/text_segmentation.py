@@ -229,7 +229,7 @@ def best_segmentation(img):
 
     mask = np.zeros((img.shape[0],img.shape[1])).astype(np.uint8)
     
-    w_e, h_e = int((w_box_1)*0.1), int((h_box_1)*0.3) # Extra height to account for errors
+    w_e, h_e = 0, 0 #int((w_box_1)*0.1), int((h_box_1)*0.3) # Extra height to account for errors
 
     pos = [x_box_1-w_e, y_box_1-h_e, x_box_1 + w_box_1 + w_e, y_box_1 + h_box_1 + h_e]
     mask[max(pos[1],0):min(pos[3], mask.shape[0]), max(pos[0],0):min(pos[2], mask.shape[1])] = 255

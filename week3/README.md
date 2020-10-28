@@ -13,7 +13,7 @@ IMPORTANT: It seems that the text_boxes.pkl from the first query dataset is in t
 `python db_utils/change_format_text_boxes.py <path_to_pkl_file>`. You should also rotate the 15th image of the query set 2.
 
 ## Instructions
-`python match\_paintings.py <path_to_db> (e.g., /home/sergio/MCV/M1/DB) <db_folder_name> (e.g., BBDD) <query_set_folder_name> (e.g., qsd1_w1) --masking <0 apply mask / 1 don't> -rm <name of the retrieval method> -mm <name of the masking method> -tm <name of the text detection method> --output_pkl <path to save pkl file with query assignments> --output_mask <folder to save mask images> --opkl_text <path to save pkl file with text bounding boxes>`
+`python match\_paintings.py <path_to_db> (e.g., /home/sergio/MCV/M1/DB) <db_folder_name> (e.g., BBDD) <query_set_folder_name> (e.g., qsd1_w1) --masking <0 don't / 1 apply mask> -rm <name of the retrieval method> -mm <name of the masking method> -tm <name of the text detection method> --output_pkl <path to save pkl file with query assignments> --output_mask <folder to save mask images> --opkl_text <path to save pkl file with text bounding boxes>`
 
 ## List of methods
 <ul>

@@ -36,5 +36,13 @@ def img_w_mask_to_string(img, bbox): #TODO: What to do with \n
         result = pytesseract.image_to_string(img)
     else:
         result = ""
-    return result
+    return take_largest_name(result)
     
+def take_largest_name(result):
+    """ Refine text detection """
+    splits = result.split("\n")
+    largest_name = ""
+    for split in splits:
+        if len(split) > len(largest_name):
+            largest_name = split
+    return largest_name
