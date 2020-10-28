@@ -34,13 +34,13 @@ def parse_input_args():
                         help="output file to write pkl file with text detections")
     parser.add_argument("--output_mask", type=str,
                         help="output folder to save predicted masks")
-    parser.add_argument("--matching_measure", type=str, default="l1_dist",
-                        help="matching measures [l1_dist, l2_dist, js_div, hellinger, levensthein]")
+    #parser.add_argument("--matching_measure", type=str, default="l1_dist",
+    #                    help="matching measures [l1_dist, l2_dist, js_div, hellinger, levensthein]")
     parser.add_argument("--matching_measures", type=str, nargs='+', default=["l1_dist"], 
                         help="matching measures [l1_dist, l2_dist, js_div, hellinger, levensthein], it must correspond to the measure used in each \
                               retrieval method.")
-    parser.add_argument("-rm", "--retrieval_method", default="CBHC",
-                        help="which method to use for painting retrieval")
+    #parser.add_argument("-rm", "--retrieval_method", default="CBHC",
+    #                    help="which method to use for painting retrieval")
     parser.add_argument("-mm", "--masking_method", default="ES",
                         help="which method to use for painting retrieval [ES, PBM]")
     parser.add_argument("-tm", "--text_method", default="SM",
@@ -49,7 +49,7 @@ def parse_input_args():
                         help="denoising technique")
     parser.add_argument("-rmm", type=str, nargs="+", default=["text", "CH"], # Will substitute rm
                         help="List of methods to use for comparison [OCR:Author name, CH:Color histogram, HOG, LBP, ...]")
-    parser.add_argument("-w", "--weights", default=[1], # Will substitute rm
+    parser.add_argument("-w", "--weights", nargs="+", type=int, # Will substitute rm
                         help="Weight of each method to use")
     parser.add_argument("-d", "--debug", default=0, type=int,
                        help="shows images and some steps for debugging (0 no, 1 yes)")
@@ -119,14 +119,14 @@ def match_paintings(args):
             text_regions, separated_bg_masks, mask_bboxes, text_masks = sort_predictions_no_gt(text_regions, masked_regions=separated_bg_masks, masked_boxes=mask_bboxes, text_mask=text_masks)
         
         # Remove background and text
-        qs_imgs_refined = removal_bg_text(qs_imgs, separated_bg_masks, mask_bboxes, text_regions, args.retrieval_method)
+        qs_imgs_refined = removal_bg_text(qs_imgs, separated_bg_masks, mask_bboxes, text_regions, "CBHC") # Temporal CBHC 
     else:
         # Remove only text
-        qs_imgs_refined = removal_text(qs_imgs, text_regions, args.retrieval_method)
+        qs_imgs_refined = removal_text(qs_imgs, text_regions, "CBHC")
 
     # Generate query set assignments
     metrics_f = [get_measure(m) for m in args.matching_measures]
-    assignments = painting_matching_ml(qs_imgs_refined, db_imgs, args.rmm, text_masks, painting_text, db_authors, metrics_f, weights=[1,1])
+    assignments = painting_matching_ml(qs_imgs_refined, db_imgs, args.rmm, text_masks, painting_text, db_authors, metrics_f, weights=args.weights)
     print("Matching in", time()-t0,"s")
 
     # If query set annotations are available, evaluate

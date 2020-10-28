@@ -13,13 +13,19 @@ IMPORTANT: It seems that the text_boxes.pkl from the first query dataset is in t
 `python db_utils/change_format_text_boxes.py <path_to_pkl_file>`. You should also rotate the 15th image of the query set 2.
 
 ## Instructions
-`python match\_paintings.py <path_to_db> (e.g., /home/sergio/MCV/M1/DB) <db_folder_name> (e.g., BBDD) <query_set_folder_name> (e.g., qsd1_w1) --masking <0 don't / 1 apply mask> -rm <name of the retrieval method> -mm <name of the masking method> -tm <name of the text detection method> --output_pkl <path to save pkl file with query assignments> --output_mask <folder to save mask images> --opkl_text <path to save pkl file with text bounding boxes>`
+`python match\_paintings.py <path_to_db> (e.g., /home/sergio/MCV/M1/DB) <db_folder_name> (e.g., BBDD) <query_set_folder_name> (e.g., qsd1_w1) --masking <0 don't / 1 apply mask> -rmm <list of retrieval methods (1 or more)> -mm <name of the masking method> -tm <name of the text detection method> --matching_measures <measures to use to compare the descriptor of each method (1 or more)> --output_pkl <path to save pkl file with query assignments> --output_mask <folder to save mask images> --opkl_text <path to save pkl file with text bounding boxes>`
 
 ## List of methods
 <ul>
-    <li> rm: [CBHC, 2dhist, CBHCM]</li>
-    <li> mm: [CBHS, PBM]</li>
-    <li> tm: [MM, MM2]</li>
+    <li> rmm: [text, HC]</li>
+    <li> mm: [ES, PBM]</li>
+    <li> tm: [MM, MM2, MM3]</li>
+</ul>
+
+## List of measures
+<ul>
+    <li> Text comparison measures: [levenshtein, jaro_winkler, ratcliff_obershelp] </li>
+    <li> Histogram comparison measures: [l1_dist, l2_dist, hellinger, js_div] </li>
 </ul>
 
 ## Notes
