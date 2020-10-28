@@ -224,6 +224,8 @@ def best_segmentation(img):
     mask[max(pos[1],0):min(pos[3], mask.shape[0]), max(pos[0],0):min(pos[2], mask.shape[1])] = 255
     return mask, pos
 
+
+
 # Selection utils
 MM = "MM"
 MM2 = "MM2"

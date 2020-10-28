@@ -85,6 +85,94 @@ def painting_matching_wmasks(imgs, db_imgs, method_name, text_masks, metric=js_d
     top_k_matches = np.argpartition(scores, list(range(max_rank)))[:, :max_rank]
     return top_k_matches
 
+# WIP: Multiple criteria
+def painting_matching_ml(imgs, db_imgs, method_list, text_masks, author_text, gt_text, metrics, weights, splits=30, max_rank=10): 
+    """ Obtain query images matches.
+        Params:
+            - imgs: query set of images [img1, img2,...]
+            - db_imgs: database images
+            - method_list: List of methods: DCT, HOG, OCR, ...
+            - metric: List of similarities for method comparison  
+            - weights: Multiply each method by its importance (i.e. maybe we want to give more importance to HOG than HC)
+            - method_name: method to apply
+            - metric: l1_dist,... (which distance / similarity to use)
+        Returns: 
+            Top k matches for each image of the query set in the database
+    """
+    descriptor_extractors = [get_descriptor_extractor(method_name) for method_name in method_list]
+    tmp_img_format = []
+    tmp_mask_format = []
+    tmp_text_format = []
+    for i in range(len(imgs)):
+        for j in range(len(imgs[i])):
+            tmp_img_format.append(imgs[i][j])
+            tmp_mask_format.append(text_masks[i][j])
+            tmp_text_format.append(author_text[i][j])
+
+    #db_imgs = [img[0] for img in db_imgs]
+    db_img_splits = [i*len(db_imgs)//splits for i in range(splits-1)]
+    
+    scores = []
+    query_descriptors = extract_descriptors(tmp_img_format, descriptor_extractors, method_list, tmp_text_format, tmp_mask_format) 
+    #np.array([extract_descriptors(img, matching_methods, mask) for img, mask in zip(tmp_img_format, tmp_mask_format)])
+    print("Starting db extraction + matching")
+    if splits > 1:
+        for split in tqdm(range(splits-2)):
+            db_descriptors = extract_descriptors(db_imgs[db_img_splits[split]:db_img_splits[split+1]], descriptor_extractors, method_list, gt_text[db_img_splits[split]:db_img_splits[split+1]], None) #np.array([mrhm(db_img) for db_img in db_imgs[db_img_splits[split]:db_img_splits[split+1]]])
+            scores.append(compare_descriptors(query_descriptors, db_descriptors, metrics, method_list, weights))
+        # compare_descriptors(query_descriptors, db_descriptors, descriptor_comp_methods, descriptor_names, weights)
+        db_descriptors = extract_descriptors(db_imgs[db_img_splits[-1]:], descriptor_extractors, method_list, gt_text[db_img_splits[-1]:], None)
+        scores.append(compare_descriptors(query_descriptors, db_descriptors, metrics, method_list, weights))
+        
+        # concatenate all the results
+        scores = np.concatenate(scores, 1)
+    else:
+        db_descriptors = np.array([mrhm(db_img) for db_img in db_imgs])
+        scores = compare_descriptors(query_descriptors, db_descriptors, metrics, method_list, weights)
+    
+    top_k_matches = np.argpartition(scores, list(range(max_rank)))[:, :max_rank]
+    return top_k_matches
+
+def extract_descriptors(imgs, descriptor_extractors, descriptor_names, author_text, text_masks):
+    """ Extract descriptors from imgs.
+        params:
+            imgs: List of images
+            descriptor_extractors: List of descriptor extractors
+            descriptor_names: List of descriptor names
+            author_text: List of painting authors 
+            text_masks: List of text boxes masks
+        return: List of descriptors with the descriptor of each image 
+    """
+    descriptor = []
+    for descriptor_name, descriptor_extractor in zip(descriptor_names, descriptor_extractors):
+        if descriptor_name == "text":
+            text_descriptors = []
+            for text_description in author_text:
+                text_descriptors.append(text_description)
+            descriptor.append(text_descriptors)
+        else:
+            descriptor.append(np.stack([descriptor_extractor(img) for img in imgs]))
+    return descriptor
+
+def compare_descriptors(query_descriptors, db_descriptors, descriptor_comp_methods, descriptor_names, weights):
+    """ Extract descriptors from imgs.
+        params:
+            query_descriptors: List of query set descriptors (each descriptor is 30xd)
+            db_descriptors: List of DB descriptors (each descriptor is 30xd)
+            descriptor_extractors: List of descriptor extractors
+            descriptor_comp_methods: List of measures to compare descriptors
+            descriptor_names: List of descriptor names 
+            weights: List of weights. This indicates the importance of each descriptor. (e.g., [1, 3.5, 0.5])
+        return: List of descriptors with the descriptor of each image 
+    """
+    scores = np.zeros((len(query_descriptors[0]), len(db_descriptors[0])))
+    num_descriptor = 0
+    for query_descriptor, db_descriptor, descriptor_name in zip(query_descriptors, db_descriptors, descriptor_names):
+        scores += weights[num_descriptor] * descriptor_comp_methods[num_descriptor](query_descriptor, db_descriptor)
+        num_descriptor += 1
+    return scores
+
+
 def remove_frame(img):
     """ Remove frame from painting (arbitrarly ~5% of the image on each side) -> Helps in getting better MAP """
     m = 0.05
@@ -237,11 +325,9 @@ def mrhm(img, mask=None, num_blocks=16):
     """ Two dimensional histogram of images. 
         returns: Image descriptor (np.array)
     """
-
-    # Reverse mask
     
     if mask is not None:
-        mask = (mask==0).astype(np.uint8)*255
+        mask = (mask!=0).astype(np.uint8)*255
         x,y,w,h = 0,0,img.shape[1],img.shape[0]
         block_h = int(np.ceil(h / num_blocks))
         block_w = int(np.ceil(w / num_blocks))
@@ -263,7 +349,8 @@ def mrhm(img, mask=None, num_blocks=16):
                 mask_block = None
 
             block_feature = cv2.calcHist([image_block],[0,1,2], mask_block, [2,24,24], [0, 256, 0, 256, 0, 256])
-            features.extend(block_feature)
+            block_feature = cv2.normalize(block_feature, block_feature)
+            features.extend(block_feature.flatten())
 
     return np.stack(features).flatten()
 
@@ -389,3 +476,19 @@ METHOD_MAPPING = {
 
 def get_method(method):
     return METHOD_MAPPING[method]
+
+
+#######
+TC = "text"
+HC = "HC"
+
+OPTIONS = [TC, HC]
+
+METHOD_MAPPING_EXTR = {
+    OPTIONS[0]: TC,
+    OPTIONS[1]: celled_2dhist_multiresolution
+}
+
+def get_descriptor_extractor(method):
+    return METHOD_MAPPING_EXTR[method]
+

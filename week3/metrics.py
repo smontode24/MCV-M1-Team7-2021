@@ -42,8 +42,8 @@ def js_div(m1, m2):
 
 # Comparing two strings by counting minimum number of operations
 # required to transform one string to another
-# seq1 & seq2 are strings to be compared
-def levensthein(seq1, seq2):
+# seq1 & seq2 are strings to be compared 
+def levensthein(seq1, seq2): # TODO: Substituting characters should not be as expensive as adding/removing
     #SOURCE: https://stackabuse.com/levenshtein-distance-and-text-similarity-in-python/
     size_x = len(seq1) + 1
     size_y = len(seq2) + 1
@@ -73,12 +73,22 @@ def levensthein(seq1, seq2):
     # Between "mama" and "papa" == 2
     return (matrix[size_x - 1, size_y - 1])
 
+def normalized_levensthein(seq1, seq2):
+    """ List of text authors in seq1 and seq2 """
+    scores = np.zeros((len(seq1), len(seq2)))
+    for i, s1 in enumerate(seq1):
+        for j, s2 in enumerate(seq2):
+            scores[i, j] = levensthein(s1, s2)
+            scores[i, j] = scores[i, j]/max(len(s1), len(s2))
+    
+    return scores
+
 MEASURES = {
     "l2_dist": l2_dist,
     "l1_dist": l1_dist,
     "hellinger": hellinger_kernel,
-    "js_div": js_div
-    "levensthein": levensthein
+    "js_div": js_div,
+    "levenshtein": normalized_levensthein
 }
 
 def get_measure(name):

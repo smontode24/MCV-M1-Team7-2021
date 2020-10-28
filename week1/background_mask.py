@@ -141,7 +141,7 @@ def compute_positions(scores, layers, cells, direction):
             layers: number of layers until reaching the center
             direction: lr, rl, tb or bt
         returns: Position of maximum change
-     """
+    """
     prior = 1/np.arange(3, layers+3)
     prior = prior/prior.sum()
     x = np.linspace(-5, 5, layers)[::-1] 

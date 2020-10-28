@@ -1,5 +1,7 @@
 import pytesseract
 import debug_utils
+import cv2
+from debug_utils import *
 
 def extract_text_from_imgs(imgs_list, text_bboxes):
     """ Recognize text in images. 
@@ -15,10 +17,24 @@ def extract_text_from_imgs(imgs_list, text_bboxes):
         for painting, bbox in zip(paintings, painting_bboxes):
             text_paintings.append(img_w_mask_to_string(painting, bbox))
         text_results.append(text_paintings)
+
+    if isDebug():
+        for paintings, painting_bboxes, texts_paintings in zip(imgs_list, text_bboxes, text_results):
+            text_paintings = []
+            for painting, bbox, text in zip(paintings, painting_bboxes, texts_paintings):
+                painting_copy = painting.copy()
+                painting_copy = cv2.rectangle(painting_copy, (int(bbox[0]),int(bbox[1])), (int(bbox[2]),int(bbox[3])), (255,0 ,0), 10)
+                cv2.imshow("result text segm", cv2.resize(painting_copy,(512,512)))
+                print("Obtained text:", text)
+                cv2.waitKey(0)
+    
     return text_results
 
-def img_w_mask_to_string(img, bbox):
+def img_w_mask_to_string(img, bbox): #TODO: What to do with \n
     img = img[bbox[1]:bbox[3], bbox[0]:bbox[2]]
-    result = pytesseract.image_to_string(img)
+    if img.shape[0] != 0:
+        result = pytesseract.image_to_string(img)
+    else:
+        result = ""
     return result
     
