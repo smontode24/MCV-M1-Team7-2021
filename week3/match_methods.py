@@ -152,7 +152,7 @@ def extract_descriptors(imgs, descriptor_extractors, descriptor_names, author_te
             for text_description in author_text:
                 text_descriptors.append(text_description)
             descriptor.append(text_descriptors)
-        elif descriptor_name == "HC":
+        else:
             if type(text_masks) == list:
                 mask_arg = list(signature(descriptor_extractor).parameters.keys())[1] == "mask"
                 if mask_arg:
@@ -161,8 +161,9 @@ def extract_descriptors(imgs, descriptor_extractors, descriptor_names, author_te
                     descriptor.append(np.stack([descriptor_extractor(img) for img in imgs]))
             else:
                 descriptor.append(np.stack([descriptor_extractor(img) for img in imgs]))
-        else:
-            descriptor.append(np.stack([descriptor_extractor(img) for img in imgs]))
+        """ else:
+
+            descriptor.append(np.stack([descriptor_extractor(img) for img in imgs])) """
     return descriptor
 
 def compare_descriptors(query_descriptors, db_descriptors, descriptor_comp_methods, descriptor_names, weights):
@@ -187,14 +188,20 @@ def compare_descriptors(query_descriptors, db_descriptors, descriptor_comp_metho
 ####################
 # Matching methods #
 ####################
-TC = "text"
-HC = "HC"
+TC_name = "text"
+HC_name = "HC"
+HOG_name = "HOG"
+DCT_name = "DCT"
+LBP_name = "LBP"
 
-OPTIONS = [TC, HC]
+OPTIONS = [TC_name, HC_name, HOG_name, DCT_name, LBP_name]
 
 METHOD_MAPPING_EXTR = {
     OPTIONS[0]: TC,
-    OPTIONS[1]: celled_2dhist # mrhm
+    OPTIONS[1]: celled_2dhist,
+    OPTIONS[2]: HOG,
+    OPTIONS[3]: DCT,
+    OPTIONS[4]: LBP
 }
 
 def get_descriptor_extractor(method):

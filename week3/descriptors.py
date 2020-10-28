@@ -181,7 +181,7 @@ def mrhm(img, mask=None, num_blocks=16):
 
 ## TEXTURES:
 
-def LBP(img, mask, num_blocks=16):
+def LBP(img, mask=None, num_blocks=16):
     """
     This function calculates the LBP descriptor for a given image.
 
@@ -218,11 +218,11 @@ def LBP(img, mask, num_blocks=16):
 
             hist = cv2.calcHist([block_lbp], [0], block_mask, [16], [0, 255])
             cv2.normalize(hist, hist)
-            descriptor.extend(hist)
+            descriptor.extend(hist.reshape(-1))
 
     return descriptor
 
-def DCT(img, mask, num_blocks=16):
+def DCT(img, mask=None, num_blocks=16):
     """
     This function calculates the DCT texture descriptor for the given image.
     :param img: image used to calculate the DCT function
@@ -261,7 +261,7 @@ def DCT(img, mask, num_blocks=16):
     return descriptor
 
 
-def HOG(img, mask):
+def HOG(img, mask=None):
     """
     Computes the HOG (Histogram of Oriented Gradients) of the given image.
     :param img: image to which the HOG will be calculated
@@ -276,10 +276,6 @@ def HOG(img, mask):
     if grayscale:
         resized_image = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
         multichannel = False
-
-    if mask is not None:
-        resized_mask = cv2.resize(mask, (512, 512), interpolation=cv2.INTER_AREA)
-        resized_image = cv2.bitwise_and(resized_img, resized_img, mask=resized_mask)
 
     return feature.hog(resized_img, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(3, 3),
                        block_norm='L2-Hys', visualize=False, transform_sqrt=False, feature_vector=True,
