@@ -43,7 +43,7 @@ def parse_input_args():
     #                    help="which method to use for painting retrieval")
     parser.add_argument("-mm", "--masking_method", default="ES",
                         help="which method to use for painting retrieval [ES, PBM]")
-    parser.add_argument("-tm", "--text_method", default="SM",
+    parser.add_argument("-tm", "--text_method", default="MM",
                         help="which method to use for text masking")
     parser.add_argument("-ft", "--filter_type", default="median",
                         help="denoising technique")
