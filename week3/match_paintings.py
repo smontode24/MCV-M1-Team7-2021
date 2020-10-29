@@ -53,6 +53,8 @@ def parse_input_args():
                         help="Weight of each method to use")
     parser.add_argument("-d", "--debug", default=0, type=int,
                        help="shows images and some steps for debugging (0 no, 1 yes)")
+    parser.add_argument("--use_boxes_annotations", default=1, type=int,
+                       help="use boxes annotations (0 no, 1 yes)")
 
     args = parser.parse_args()
 
@@ -99,8 +101,11 @@ def match_paintings(args):
         # Crop paintings rectangularly to later extract text
         cropped_qs_imgs = crop_painting_for_text(qs_imgs, mask_bboxes)
 
-        # Compute for each painting its text segmentation
-        text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
+        if args.use_boxes_annotations == 0:
+            # Compute for each painting its text segmentation
+            text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
+        else:
+            text_masks, text_regions, relative_boxes = process_gt_text_mask(qs_text_bboxes, mask_bboxes, cropped_qs_imgs)
 
         # Text extractor
         painting_text = extract_text_from_imgs(cropped_qs_imgs, relative_boxes)
@@ -108,6 +113,7 @@ def match_paintings(args):
     # Perform painting matching
     t0 = time()
 
+    # Denoise images before extracting descriptors
     qs_imgs = denoise_images(qs_imgs, "median")
 
     # Clear bg and text

@@ -43,27 +43,27 @@ def js_div(m1, m2):
 ######
 # Text distance metrics
 ######
-def levensthein(query, db): # TODO: Substituting characters should not be as expensive as adding/removing -> why?
+def levenshtein(query, db): # TODO: Substituting characters should not be as expensive as adding/removing -> why?
     # Normalized version of levensthein
     # query -> list of texts detected on the query images
     # db -> list of texts of the db 
     scores = np.zeros((len(query), len(db)))
     for i, q_text in enumerate(query):
         for j, db_text in enumerate(db):
-            scores[i,j] = textdistance.levensthein.distance(q_text, db_text)
+            scores[i,j] = textdistance.levenshtein.distance(q_text, db_text)
             scores[i,j] = scores[i,j] / max(len(db_text), len(db_text))
     return scores
 
-def normalized_levensthein(seq1, seq2):
-    """ List of text authors in seq1 and seq2 """
+""" def normalized_levensthein(seq1, seq2):
+    # List of text authors in seq1 and seq2
     scores = np.zeros((len(seq1), len(seq2)))
     for i, s1 in enumerate(seq1):
         for j, s2 in enumerate(seq2):
             if len(s1) == 0 and len(s2) == 0:
                 scores[i, j] = 1
             else:
-                scores[i, j] = levensthein(s1, s2)
-                scores[i, j] = scores[i, j]/max(len(s1), len(s2))
+                scores[i, j] = levenshtein(s1, s2)
+                scores[i, j] = scores[i, j]/max(len(s1), len(s2)) """
     
 def jaro_winkler(query, db): # also normalized
     scores = np.zeros((len(query), len(db)))
@@ -87,12 +87,10 @@ MEASURES = {
     "l1_dist": l1_dist,
     "hellinger": hellinger_kernel,
     "js_div": js_div,
-    "levenshtein": normalized_levensthein,
+    "levenshtein": levenshtein,
     "jaro_winkler": jaro_winkler,
     #"smith_waterman": smith_waterman,
     "ratcliff_obershelp": ratcliff_obershelp,
-
-
 }
 
 def get_measure(name):

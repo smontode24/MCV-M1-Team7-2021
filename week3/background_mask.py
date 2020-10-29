@@ -110,10 +110,14 @@ def edge_segmentation(img):
     bc[output == idxs[0]] = 255
     bc = create_convex_painting(mask, bc)
 
+    bc = refine_mask(img, bc, get_bbox(bc))
+
     if len(idxs) > 1:
         sbc = np.zeros(output.shape)
         sbc[output == idxs[1]] = 255
         sbc = create_convex_painting(mask, sbc)
+        if sbc.astype(np.uint8).sum() > 0:
+            sbc = refine_mask(img, sbc, get_bbox(sbc))
 
     bboxes = [get_bbox(bc)]
     resulting_masks = bc
@@ -127,6 +131,52 @@ def edge_segmentation(img):
             splitted_resulting_masks.append(sbc)
     
     return resulting_masks, bboxes, splitted_resulting_masks
+
+def refine_mask(img, mask, bbox):
+    original_mask = mask.copy()
+    img = img[bbox[0]:bbox[2], bbox[1]:bbox[3]]
+
+    mask = np.zeros((img.shape[0]+2,img.shape[1]+2),np.uint8)
+    seeds = [(0, mask.shape[0]//2), (mask.shape[1]-5, mask.shape[0]//2), (mask.shape[1]//2, 0), (mask.shape[1]//2, mask.shape[0]-5)]
+    #cv2.imshow("img", img)
+    #cv2.waitKey(0)
+
+    best_and_lowest = 100
+    best_mask = None
+
+    for seed in seeds:
+        floodflags = 4
+        floodflags |= cv2.FLOODFILL_MASK_ONLY
+        floodflags |= (255 << 8)
+
+        mask = np.zeros((img.shape[0]+2,img.shape[1]+2),np.uint8)
+        num,img,mask,rect = cv2.floodFill(img, mask, seed, (255,0,0), (5,)*3, (5,)*3, floodflags)
+        #cv2.imshow("m1", mask)
+        #cv2.waitKey(0)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((11,11)))
+
+        if mask.astype(np.uint8).sum() != 0:
+            mask_bbox = get_bbox((mask!=0).astype(np.uint8)*255)
+            sum_pixels = (mask!=0).astype(np.uint8).sum()
+
+            if sum_pixels/(img.shape[0]*img.shape[1]) > 0.05 and sum_pixels/(img.shape[0]*img.shape[1]) < 0.3 and \
+                sum_pixels/((mask_bbox[2]-mask_bbox[0])*(mask_bbox[3]-mask_bbox[1])) > 0.7: #  and 
+                #cv2.imshow("org", original_mask)
+                tot_amount = sum_pixels/(img.shape[0]*img.shape[1])
+                if tot_amount < best_and_lowest:
+                    best_and_lowest = tot_amount
+                    best_mask = [mask, bbox]
+                #cv2.imshow("corrected,", original_mask)
+                #cv2.imshow("mask", mask)
+                #cv2.waitKey(0)
+                #return original_mask
+    
+    if type(best_mask) == list:
+        mask, bbox = best_mask
+        original_mask[bbox[0]:bbox[2], bbox[1]:bbox[3]] = (mask[1:-1,1:-1]==0).astype(np.uint8)*255
+        original_mask = cv2.morphologyEx(original_mask, cv2.MORPH_OPEN, np.ones((img.shape[0]//10,15)))
+    
+    return original_mask
 
 def pbm_segmentation(img, margin=0.01, threshold=0.000001):
     """ Probability-based segmentation. Model the background with a multivariate gaussian distribution. 

@@ -30,7 +30,7 @@ def extract_text_from_imgs(imgs_list, text_bboxes):
     
     return text_results
 
-def img_w_mask_to_string(img, bbox): #TODO: What to do with \n
+def img_w_mask_to_string(img, bbox):
     img = img[bbox[1]:bbox[3], bbox[0]:bbox[2]]
     if img.shape[0] != 0:
         result = pytesseract.image_to_string(img)

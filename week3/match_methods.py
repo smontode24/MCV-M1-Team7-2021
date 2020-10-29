@@ -161,9 +161,6 @@ def extract_descriptors(imgs, descriptor_extractors, descriptor_names, author_te
                     descriptor.append(np.stack([descriptor_extractor(img) for img in imgs]))
             else:
                 descriptor.append(np.stack([descriptor_extractor(img) for img in imgs]))
-        """ else:
-
-            descriptor.append(np.stack([descriptor_extractor(img) for img in imgs])) """
     return descriptor
 
 def compare_descriptors(query_descriptors, db_descriptors, descriptor_comp_methods, descriptor_names, weights):

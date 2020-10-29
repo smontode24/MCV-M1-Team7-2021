@@ -4,6 +4,7 @@ from background_mask import get_bbox
 from debug_utils import *
 from tqdm import tqdm
 from collections import defaultdict
+from evaluation.mask_evaluation import bb_intersection_over_union
 
 def estimate_text_mask(cropped_imgs, painting_bboxes, method, qs_images):
     """ List of list of images. Each list contains one element for each detected painting in the image.
@@ -57,6 +58,58 @@ def estimate_text_mask(cropped_imgs, painting_bboxes, method, qs_images):
             i += 1
 
     return [cropped_text_mask, bboxes_mask, relative_boxes]
+
+def process_gt_text_mask(qs_text_boxes, painting_bboxes, qs_imgs):
+    cropped_text_mask = []
+    relative_bboxes = []
+
+    for text_boxes, painting_boxes in zip(qs_text_boxes, painting_bboxes):
+        cr_text_mask = []
+        rl_boxes = []
+        text_boxes_to_assign = [tbox for tbox in text_boxes]
+        painting_boxes_to_assign = [pbox for pbox in painting_boxes]
+
+        for painting_box in painting_boxes: # text_boxes_to_assign
+            
+            best_candidate = None
+            best_iou = -1
+            best_idx = 0
+            idx = 0
+            for tbox in text_boxes_to_assign:
+                c_iou = bb_intersection_over_union([tbox[1], tbox[0], tbox[3], tbox[2]], painting_box)
+                if c_iou > best_iou:
+                    best_iou = c_iou
+                    best_candidate = tbox
+                    best_idx = idx
+                idx += 1
+
+            del text_boxes_to_assign[best_idx]
+            text_box = best_candidate
+            mask = np.zeros((painting_box[2]-painting_box[0], painting_box[3]-painting_box[1]), dtype=np.uint8)
+            mask[text_box[1]:text_box[3], text_box[0]:text_box[2]] = 255
+            cr_text_mask.append(mask)
+            relative_box = [max(0, text_box[0]-painting_box[1]), max(0, text_box[1]-painting_box[0]), max(1, text_box[2]-painting_box[1]), max(text_box[3]-painting_box[0], 1)]
+            rl_boxes.append(relative_box)
+
+        cropped_text_mask.append(cr_text_mask)
+        relative_bboxes.append(rl_boxes)
+
+    if isDebug():
+        # Show images
+        i = 0
+        for paintings in qs_imgs:
+            j = 0
+            for painting in paintings:
+                bbox = relative_bboxes[i][j]
+                painting_copy = painting.copy()
+                painting_copy = cv2.rectangle(painting_copy, (int(bbox[0]),int(bbox[1])), (int(bbox[2]),int(bbox[3])), (255,0 ,0), 10)
+                cv2.imshow("result text segm", cv2.resize(painting_copy,(512,512)))
+                cv2.waitKey(0)
+                
+                j += 1
+            i += 1
+
+    return [cropped_text_mask, qs_text_boxes, relative_bboxes]
 
 def crop_painting_for_text(imgs, bboxes):
     """ Rectangular paintings for images.
@@ -234,6 +287,83 @@ def best_segmentation(img):
     pos = [x_box_1-w_e, y_box_1-h_e, x_box_1 + w_box_1 + w_e, y_box_1 + h_box_1 + h_e]
     mask[max(pos[1],0):min(pos[3], mask.shape[0]), max(pos[0],0):min(pos[2], mask.shape[1])] = 255
     return mask, pos
+
+def text_detect_method1(img, opt = 0):
+    """
+    Text bounding box detection
+
+    :param img: (ndarray) query image
+    :param opt: (int) options to corner detection (0 or 1)
+    :return: bbox: (tuple of int) bounding box, (tlx, tly, brx, bry)
+    """
+
+    bifilter = cv2.bilateralFilter(img, 9, 300, 300)
+
+    hsv = cv2.cvtColor(bifilter, cv2.COLOR_BGR2HSV)
+
+    ret, thresh = cv2.threshold(hsv[:, :, 1], 0, 255, cv2.THRESH_BINARY_INV)
+
+    closing = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    open1 = cv2.morphologyEx(closing, cv2.MORPH_OPEN, np.ones((10, 1), np.uint8), iterations=2)
+    open2 = cv2.morphologyEx(open1, cv2.MORPH_OPEN, np.ones((1, 10), np.uint8), iterations=2)
+
+    ret, labels = cv2.connectedComponents(open2)
+
+    area = []
+    for i, lab in enumerate(np.unique(labels)):
+        area.append(open2[labels == lab].size)
+    idx = sorted(range(len(area)), key=lambda k: area[k])
+
+    x_n = open2.shape[0]
+    nbb = list(range(int((x_n / 2) - x_n * (0.05)), int((x_n / 2) + x_n * (0.05))))
+
+    if ret > 2:
+        for i, j in enumerate(idx):
+            if np.sum(open2[labels == j] == 0) == 0:
+                idn = np.where(labels == j)[0]
+                nocenter = [val for val in idn.tolist() if val in nbb]
+
+                if (len(area) - i) > 2:
+                    open2[labels == j] = 0
+
+                if (len(area) - i) <= 2 and len(nocenter) > 0:
+                    open2[labels == j] = 0
+                    open2[labels == idx[i - 1]] = 255
+
+    y0, x0, _, _, y1, x1, _, _ = detect_corners(open2)
+
+    bbox = [x0, y0, x1, y1]
+    mask = np.zeros((img.shape[0],img.shape[1])).astype(np.uint8)
+    mask[bbox[0]:bbox[2], bbox[1]:bbox[3]] = 255
+    return mask, bbox
+
+def detect_corners(mask):
+    """
+    Finds four points corresponding to rectangle corners
+
+    :param mask: (ndarray) binary image
+    :return: (int) points from corners
+    """
+
+    width = mask.shape[1]
+    height = mask.shape[0]
+    coords = np.argwhere(np.ones([height, width]))
+    coords_x = coords[:, 1]
+    coords_y = coords[:, 0]
+
+    coords_x_filtered = np.extract(mask, coords_x)
+    coords_y_filtered = np.extract(mask, coords_y)
+    max_br = np.argmax(coords_x_filtered + coords_y_filtered)
+    max_tr = np.argmax(coords_x_filtered - coords_y_filtered)
+    max_tl = np.argmax(-coords_x_filtered - coords_y_filtered)
+    max_bl = np.argmax(-coords_x_filtered + coords_y_filtered)
+
+    tl_x, tl_y = int(coords_x_filtered[max_tl]), int(coords_y_filtered[max_tl])
+    tr_x, tr_y = int(coords_x_filtered[max_tr]), int(coords_y_filtered[max_tr])
+    bl_x, bl_y = int(coords_x_filtered[max_bl]), int(coords_y_filtered[max_bl])
+    br_x, br_y = int(coords_x_filtered[max_br]), int(coords_y_filtered[max_br])
+
+    return tl_x, tl_y, bl_x, bl_y, br_x, br_y, tr_x, tr_y
 
 ####
 ##
@@ -588,12 +718,13 @@ def search_rectangles(white,black,paint):
 MM = "MM"
 MM2 = "MM2"
 MM3 = "MM3"
-OPTIONS = [MM, MM2, MM3]
+OPTIONS = [MM, MM2, MM3, "MM4"]
 
 METHOD_MAPPING = {
     OPTIONS[0]: morphological_method1,
     OPTIONS[1]: best_segmentation,
-    OPTIONS[2]: td6
+    OPTIONS[2]: td6,
+    OPTIONS[3]: text_detect_method1
 }
 
 def get_method(method):

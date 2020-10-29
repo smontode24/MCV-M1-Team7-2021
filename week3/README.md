@@ -17,7 +17,7 @@ IMPORTANT: It seems that the text_boxes.pkl from the first query dataset is in t
 
 ## List of methods
 <ul>
-    <li> rmm: [text, HC]</li>
+    <li> rmm: [text, HC, HOG, DCT, LBP]</li>
     <li> mm: [ES, PBM]</li>
     <li> tm: [MM, MM2, MM3]</li>
 </ul>
