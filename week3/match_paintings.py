@@ -14,6 +14,7 @@ from debug_utils import *
 from filtering import *
 import numpy as np
 import cv2
+import os
 
 def parse_input_args():
     """ Parse program arguments """
@@ -85,10 +86,16 @@ def match_paintings(args):
     # Obtain painting region from images
     if args.masking:
         # Obtain masks for the paintings. -> Denoise on copy only because it affects text recognition a lot
-        masked_regions, mask_bboxes, separated_bg_masks = bg_mask(denoise_images(qs_imgs, "median"), args.masking_method)
+        mask_file = path.join(args.ds_path, args.qs_path, "mask_predictions.pkl")
+        if not os.path.isfile(mask_file):
+            masked_regions, mask_bboxes, separated_bg_masks = bg_mask(denoise_images(qs_imgs, args.filter_type), args.masking_method)
+            to_pkl([masked_regions, mask_bboxes, separated_bg_masks], path.join(args.ds_path, args.qs_path, "mask_predictions.pkl"))
+        else:
+            masked_regions, mask_bboxes, separated_bg_masks = load_plain_pkl(mask_file)
+            print("Loading previous mask!")
     else:
         print("DEBUGGING")
-        # Convert list of images into list of list of images (as without masking there will be a single painting, 
+        # Convert list of images into list of list of images (as without masking there will be a single painting,                                                                                                                                                                                                                                                                           
         # we just have to add a list structure with one image)
         masked_regions, mask_bboxes, separated_bg_masks = [[[np.ones((image.shape[0], image.shape[1])).astype(bool)] for image in qs_imgs], \
                           [[[0, 0, image.shape[0], image.shape[1]]] for image in qs_imgs], \
@@ -114,16 +121,17 @@ def match_paintings(args):
     t0 = time()
 
     # Denoise images before extracting descriptors
-    qs_imgs = denoise_images(qs_imgs, "median")
+    qs_imgs = denoise_images(qs_imgs, args.filter_type)
 
     # Clear bg and text
     if args.text_removal and args.masking:
+
         if type(qs_gts) == list: # Reorder both predictions and grountruths: left-right and top-bottom
             bg_reord = sort_annotations_and_predictions(qs_gts, qs_text_bboxes, text_regions, masked_regions=separated_bg_masks, masked_boxes=mask_bboxes, text_mask=text_masks)
             qs_gts, qs_text_bboxes, text_regions, separated_bg_masks, mask_bboxes, text_masks = bg_reord
         else: # Reorder only predictions: left-right and top-bottom
             text_regions, separated_bg_masks, mask_bboxes, text_masks = sort_predictions_no_gt(text_regions, masked_regions=separated_bg_masks, masked_boxes=mask_bboxes, text_mask=text_masks)
-        
+
         # Remove background and text
         qs_imgs_refined = removal_bg_text(qs_imgs, separated_bg_masks, mask_bboxes, text_regions, "CBHC") # Temporal CBHC 
     else:
@@ -164,14 +172,14 @@ def match_paintings(args):
     # Evaluate painting matching
     if type(qs_gts) == list:
         qs_gts = reformat_qs_gts(qs_gts)
-        qs_gts = np.array(qs_gts).reshape(-1, 1)
+        qs_gts = np.array(qs_gts).reshape(-1, 1)        
         if qs_gts[0].dtype == 'O':
             qs_gts = np.concatenate([[q for q in qs_gt[0]] for qs_gt in qs_gts]).reshape(-1, 1)
         map_at_1 = mapk(qs_gts, assignments, k=1)
         map_at_5 = mapk(qs_gts, assignments, k=5)
 
         print("MAP@1:", map_at_1)
-        print("MAP@5:", map_at_5)
+        print("MAP@5:", map_at_5)                                                                                                                                                                                                                                                                                               
    
     print("Done")
 

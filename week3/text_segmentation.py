@@ -4,7 +4,7 @@ from background_mask import get_bbox
 from debug_utils import *
 from tqdm import tqdm
 from collections import defaultdict
-from evaluation.mask_evaluation import bb_intersection_over_union
+from evaluation.mask_evaluation import bb_intersection_over_union, bb_int_a_over_b
 
 def estimate_text_mask(cropped_imgs, painting_bboxes, method, qs_images):
     """ List of list of images. Each list contains one element for each detected painting in the image.
@@ -76,7 +76,7 @@ def process_gt_text_mask(qs_text_boxes, painting_bboxes, qs_imgs):
             best_idx = 0
             idx = 0
             for tbox in text_boxes_to_assign:
-                c_iou = bb_intersection_over_union([tbox[1], tbox[0], tbox[3], tbox[2]], painting_box)
+                c_iou = bb_int_a_over_b([tbox[1], tbox[0], tbox[3], tbox[2]], painting_box)
                 if c_iou > best_iou:
                     best_iou = c_iou
                     best_candidate = tbox

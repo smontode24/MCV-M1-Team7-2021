@@ -219,16 +219,7 @@ def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes
     for i in range(len(qs_gts_matching)):
         num_paintings = len(qs_gts_matching[i][0])
         if num_paintings > 1 and len(pred_bboxes[i]) > 1:
-            # First sort real
-            b1_c = box1_closer(qs_gts_bboxes[i][0], qs_gts_bboxes[i][1])
-            if not b1_c:
-                new_qs_gts_matching.append([qs_gts_matching[i][0][1], qs_gts_matching[i][0][0]])
-                new_qs_gts_bboxes.append([qs_gts_bboxes[i][1], qs_gts_bboxes[i][0]])
-            else:
-                new_qs_gts_matching.append(qs_gts_matching[i])
-                new_qs_gts_bboxes.append(qs_gts_bboxes[i])
-
-            b1_c = box1_closer(pred_bboxes[i][0], pred_bboxes[i][1])
+            b1_c = box1_closer(masked_boxes[i][0], masked_boxes[i][1])
             if not b1_c:
                 if masked_regions != None:
                     new_masked_regions.append([masked_regions[i][1], masked_regions[i][0]])
@@ -242,6 +233,15 @@ def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes
                     new_text_mask.append(text_mask[i])
                 new_pred_bboxes.append(pred_bboxes[i])
             
+            # First sort real
+            if bb_int_a_over_b([new_masked_boxes[i][0][1], new_masked_boxes[i][0][0], new_masked_boxes[i][0][3], new_masked_boxes[i][0][2]], qs_gts_bboxes[i][0]) < \
+                bb_int_a_over_b([new_masked_boxes[i][0][1], new_masked_boxes[i][0][0], new_masked_boxes[i][0][3], new_masked_boxes[i][0][2]], qs_gts_bboxes[i][1]):
+                new_qs_gts_matching.append([qs_gts_matching[i][0][1], qs_gts_matching[i][0][0]])
+                new_qs_gts_bboxes.append([qs_gts_bboxes[i][1], qs_gts_bboxes[i][0]])
+            else:
+                new_qs_gts_matching.append(qs_gts_matching[i])
+                new_qs_gts_bboxes.append(qs_gts_bboxes[i])
+
         else:
             new_qs_gts_matching.append(qs_gts_matching[i])
             if masked_regions != None:
@@ -273,7 +273,7 @@ def sort_predictions_no_gt(pred_bboxes, masked_regions=None, masked_boxes=None, 
     for i in range(len(pred_bboxes)):
         if len(pred_bboxes[i]) > 1:
             # First sort real
-            b1_c = box1_closer(pred_bboxes[i][0], pred_bboxes[i][1])
+            b1_c = box1_closer(masked_boxes[i][0], masked_boxes[i][1])
             if not b1_c:
                 if masked_regions != None:
                     new_masked_regions.append([masked_regions[i][1], masked_regions[i][0]])
@@ -288,7 +288,7 @@ def sort_predictions_no_gt(pred_bboxes, masked_regions=None, masked_boxes=None, 
                 new_pred_bboxes.append(pred_bboxes[i])
             
         else:
-            new_pred_bboxes.append(pred_bboxes[i])
+            new_pred_bboxes.append(masked_boxes[i])
             if masked_regions != None:
                 new_masked_regions.append(masked_regions[i])
                 new_masked_boxes.append(masked_boxes[i])
@@ -349,3 +349,10 @@ def bb_intersection_over_union(boxA, boxB):
 	
 	iou = interArea / float(boxAArea + boxBArea - interArea)
 	return iou
+
+def bb_int_a_over_b(boxA, boxB):
+	# determine the (x, y)-coordinates of the intersection rectangle
+	x0, x1 = max(boxA[0], boxB[0]), min(boxA[2], boxB[2])
+	y0, y1 = max(boxA[1], boxB[1]), min(boxA[3], boxB[3])
+	return (x1-x0)*(y1-y0)/((boxA[2]-boxA[0])*(boxA[3]-boxA[1]))
+    

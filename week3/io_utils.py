@@ -31,6 +31,11 @@ def load_gt_annotations(anno_path):
         annotations = np.array(annotations).reshape(-1) """
     return annotations
 
+def load_plain_pkl(path):
+    fd = open(path, "rb")
+    annotations = pickle.load(fd)
+    return annotations
+
 def load_pkl(anno_path):
     """ Load a pickle file """
     if os.path.exists(anno_path):
