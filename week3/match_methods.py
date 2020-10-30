@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 from metrics import *
 import cv2
 from debug_utils import *
@@ -176,9 +177,14 @@ def compare_descriptors(query_descriptors, db_descriptors, descriptor_comp_metho
     """
     scores = np.zeros((len(query_descriptors[0]), len(db_descriptors[0])))
     num_descriptor = 0
-    for query_descriptor, db_descriptor, descriptor_name in zip(query_descriptors, db_descriptors, descriptor_names):
-        scores += weights[num_descriptor] * descriptor_comp_methods[num_descriptor](query_descriptor, db_descriptor)
-        num_descriptor += 1
+    try:
+        for query_descriptor, db_descriptor, descriptor_name in zip(query_descriptors, db_descriptors, descriptor_names):
+            scores += weights[num_descriptor] * descriptor_comp_methods[num_descriptor](query_descriptor, db_descriptor)
+            num_descriptor += 1
+    except TypeError:
+        print("Maybe you've missed to use some --weights in your arguments")
+        print('Try at least "--weights 1" to continue the execution')
+        sys.exit("ABORTING ##2")
     return scores
 
 

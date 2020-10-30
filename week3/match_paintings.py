@@ -1,4 +1,5 @@
 import argparse
+import sys
 from io_utils import *
 from os import path
 from background_mask import *
@@ -48,7 +49,7 @@ def parse_input_args():
                         help="which method to use for text masking")
     parser.add_argument("-ft", "--filter_type", default="median",
                         help="denoising technique")
-    parser.add_argument("-rmm", type=str, nargs="+", default=["text", "CH"], # Will substitute rm
+    parser.add_argument("-rmm", type=str, nargs="+", default=["text", "HC"], # Will substitute rm
                         help="List of methods to use for comparison [OCR:Author name, CH:Color histogram, HOG, LBP, ...]")
     parser.add_argument("-w", "--weights", nargs="+", type=int, # Will substitute rm
                         help="Weight of each method to use")
@@ -59,12 +60,22 @@ def parse_input_args():
 
     args = parser.parse_args()
 
+    #Awesome checks to avoid "STUPID" combinations of arguments
+    # checks for "qsd1"
+    if "qsd1" in args.qs_path:
+        # not usage of MASKING
+        # this check avoids => ValueError: cannot convert float NaN to integer
+        if args.masking:
+            print('Generally speaking, files with "qsd1" are unmasked')
+            print('Try --masking 0')
+            sys.exit("ABORTING ##1")
+
     if args.debug == 1:
         setDebugMode(True)
     return args
 
 def match_paintings(args):
-    
+
     if isDebug():
         t0 = time()
     
