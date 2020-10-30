@@ -4,6 +4,9 @@ from debug_utils import *
 
 def denoise_images(qs_imgs, method_name="median"):
     """ Denoise a list of images """
+    if method_name:
+        return qs_imgs
+    
     noise_removal_method = get_noise_removal_method(method_name) 
     denoised_imgs = [denoise_median(qs_img) for qs_img in qs_imgs]
 

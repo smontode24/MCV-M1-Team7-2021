@@ -51,11 +51,11 @@ def parse_input_args():
                         help="denoising technique")
     parser.add_argument("-rmm", type=str, nargs="+", default=["text", "HC"], # Will substitute rm
                         help="List of methods to use for comparison [OCR:Author name, CH:Color histogram, HOG, LBP, ...]")
-    parser.add_argument("-w", "--weights", nargs="+", type=int, # Will substitute rm
+    parser.add_argument("-w", "--weights", nargs="+", type=int, default=1, # Will substitute rm
                         help="Weight of each method to use")
     parser.add_argument("-d", "--debug", default=0, type=int,
                        help="shows images and some steps for debugging (0 no, 1 yes)")
-    parser.add_argument("--use_boxes_annotations", default=1, type=int,
+    parser.add_argument("--use_boxes_annotations", default=0, type=int,
                        help="use boxes annotations (0 no, 1 yes)")
 
     args = parser.parse_args()
@@ -93,7 +93,7 @@ def match_paintings(args):
         #print("Size of qs_mask_list:    ", len(qs_mask_list))
         #print("Size of qs_text_bboxes:  ", len(qs_text_bboxes))
         t0 = time()
-
+    denoise_images(qs_imgs, args.filter_type)
     # Obtain painting region from images
     if args.masking:
         # Obtain masks for the paintings. -> Denoise on copy only because it affects text recognition a lot
