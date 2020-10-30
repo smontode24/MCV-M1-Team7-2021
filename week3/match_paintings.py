@@ -67,7 +67,7 @@ def parse_input_args():
         if args.masking:
             print('Generally speaking, files with "qsd1" are unmasked')
             print('Try --masking 0')
-            sys.exit("ABORTING")
+            sys.exit("ABORTING ##1")
 
     if args.debug == 1:
         setDebugMode(True)
