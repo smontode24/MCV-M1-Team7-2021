@@ -14,7 +14,7 @@ def l2_dist(m1, m2):
     y2 = np.sum(m2**2, axis=1)
     xy = np.dot(m1, m2.T)
     dist = np.sqrt(x2 - 2*xy + y2)
-    return dist
+    return dist / 2 # Normalize
 
 def l1_dist(m1, m2):
     """ L1 distance """
