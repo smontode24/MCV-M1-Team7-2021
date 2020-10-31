@@ -83,6 +83,31 @@ def match_paintings(args):
     db_imgs, db_annotations, db_authors = load_db(path.join(args.ds_path, args.db_path))
     qs_imgs, qs_gts, qs_mask_list, qs_text_bboxes = load_query_set(path.join(args.ds_path, args.qs_path))
 
+
+    # Previous checks: if db_imgs = 0
+    if len(db_imgs)==0:
+        print('MAIN DB: Nothing was found on path: ', args.db_path)
+        print('Check that is correct')
+        sys.exit("ABORTING: Nothing_in_DB_path")
+    #TODO
+    ''' 
+    if len(db_annotations)==0:
+        print('ANNOTATIONS: Nothing was found on path: ', args.db_anotations)
+        print('Check that is correct')
+        # sys.exit("ABORTING: Nothing_in_ANNOTATIONS_path")
+
+    if len(db_authors) == 0:
+        print('AUTHORS: Nothing was found on path: ', args.db_authors)
+        print('Check that is correct')
+        # sys.exit("ABORTING: Nothing_in_AUTHORS_path")
+    '''
+    # Previous checks: if qs_imgs = 0
+    if len(qs_imgs) == 0:
+        print('QDS: Nothing was found on path: ', args.qs_path)
+        print('Check that is correct')
+        sys.exit("ABORTING: Nothing_in_QDS_path")
+
+
     # Remove noise (e.g., use median filter k=7)
     #qs_imgs = denoise_images(qs_imgs, "median")
 
