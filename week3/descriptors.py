@@ -197,6 +197,7 @@ def LBP(img, mask=None, num_blocks=16):
 
     if mask is not None:
         mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_AREA)
+        mask = (mask==0).astype(np.uint8)*255
 
     height, width = gray_img.shape[:2]
     height_block = int(np.ceil(height / num_blocks))  # Number of height pixels for sub-image
@@ -213,8 +214,8 @@ def LBP(img, mask=None, num_blocks=16):
 
             block_lbp = np.float32(feature.local_binary_pattern(block, 8, 2, method='default'))
 
-            if mask is not None:
-                mask = mask[i:i + height_block, j:j + width_block]
+            """ if mask is not None:
+                mask = mask[i:i + height_block, j:j + width_block] """
 
             hist = cv2.calcHist([block_lbp], [0], block_mask, [16], [0, 255])
             cv2.normalize(hist, hist)
@@ -232,12 +233,8 @@ def DCT(img, mask=None, num_blocks=16):
     """
 
     descriptor = []
-    number_coefficients = 100
-    resized_img = cv2.resize(img, (512, 512), interpolation=cv2.INTER_AREA)
-
-    if mask is not None:
-        resized_mask = cv2.resize(mask, (512, 512), interpolation=cv2.INTER_AREA)
-        resized_image = cv2.bitwise_and(resized_img, resized_img, mask=resized_mask)
+    number_coefficients = 30
+    resized_img = cv2.resize(img, (256, 256), interpolation=cv2.INTER_AREA)
 
     grayscale_img = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
     height, width = grayscale_img.shape[:2]
@@ -268,15 +265,13 @@ def HOG(img, mask=None):
     :param mask: binary mask that will be applied to the image
     :return: array with the image features
     """
-    resized_img = cv2.resize(img, (512, 512), interpolation=cv2.INTER_AREA)
+    resized_img = cv2.resize(img, (256, 256), interpolation=cv2.INTER_AREA)
+    ppc = 16
+    cpb = 3
 
-    if grayscale:
-        resized_image = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
-        multichannel = False
-
-    return feature.hog(resized_img, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(3, 3),
+    return feature.hog(resized_img, orientations=9, pixels_per_cell=(ppc, ppc), cells_per_block=(cpb, cpb),
                        block_norm='L2-Hys', visualize=False, transform_sqrt=False, feature_vector=True,
-                       multichannel=multichannel)
+                       multichannel=True)
 
 
 OPTIONS = ["onedcelled", "CBHC", "1dhist", "2dhist", "CBHCM", "LBP", "DCT", "HOG"]
