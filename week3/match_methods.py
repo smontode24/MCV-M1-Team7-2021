@@ -174,12 +174,17 @@ def compare_descriptors(query_descriptors, db_descriptors, descriptor_comp_metho
             descriptor_names: List of descriptor names 
             weights: List of weights. This indicates the importance of each descriptor. (e.g., [1, 3.5, 0.5])
         return: List of descriptors with the descriptor of each image 
-    """
+    """                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
     scores = np.zeros((len(query_descriptors[0]), len(db_descriptors[0])))
     num_descriptor = 0
     try:
         for query_descriptor, db_descriptor, descriptor_name in zip(query_descriptors, db_descriptors, descriptor_names):
-            scores += weights[num_descriptor] * descriptor_comp_methods[num_descriptor](query_descriptor, db_descriptor)
+            d_score = descriptor_comp_methods[num_descriptor](query_descriptor, db_descriptor)
+            if descriptor_name != "text":
+                d_score = d_score / (16*16)
+
+            scores += weights[num_descriptor] * d_score
+            #print(weights[num_descriptor], d_score)
             num_descriptor += 1
     except TypeError:
         print("Maybe you've missed to use some --weights in your arguments")

@@ -58,7 +58,7 @@ def read_author_db(db_path):
         if content_unprocessed == "\n":
             content = "Unknown"
         else:
-            content = content_unprocessed.split("(")[1].split(",")[0][1:-1] #",".join(content_unprocessed.split(")")[-2].split(",")[1:])[2:-1]
+            content = content_unprocessed.split("(")[1].split(",")[0][1:-1] # ",".join(content_unprocessed.split(")")[-2].split(",")[1:])[2:-1] # #",".join(content_unprocessed.split(")")[-2].split(",")[1:])[2:-1]
         db_authors.append(content)
         fh.close()
 
