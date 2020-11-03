@@ -1,4 +1,4 @@
-# Week 3
+# Week 4
 
 ## Pre-requisites
 - OpenCV
@@ -38,7 +38,7 @@ which includes instructions to install it in most common used systems.
     <li> matching_measures: [l1_dist, l2_dist, hellinger, js_div, levenshtein, jaro_winkler, ratcliff_obershelp]</li>
     <li> rmm: [text, HC, HOG, DCT, LBP]</li>
     <li> mm: [ES, PBM]</li>
-    <li> tm: [MM, MM2, MM3, MM4]</li>
+    <li> tm: [MM, MM2, MM3]</li>
     <li> filter_type: [median]</li>
     
 </ul>

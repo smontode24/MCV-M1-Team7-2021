@@ -162,6 +162,7 @@ def match_paintings(args):
     qs_imgs = denoise_images(qs_imgs, args.filter_type)
 
     # Clear bg and text
+    # TODO: Clean and fix reordenation for 1-3 paintings
     if args.text_removal and args.masking:
 
         if type(qs_gts) == list: # Reorder both predictions and grountruths: left-right and top-bottom
@@ -171,10 +172,10 @@ def match_paintings(args):
             text_regions, separated_bg_masks, mask_bboxes, text_masks = sort_predictions_no_gt(text_regions, masked_regions=separated_bg_masks, masked_boxes=mask_bboxes, text_mask=text_masks)
 
         # Remove background and text
-        qs_imgs_refined = removal_bg_text(qs_imgs, separated_bg_masks, mask_bboxes, text_regions, "CBHC") # Temporal CBHC 
+        qs_imgs_refined = removal_bg_text(qs_imgs, separated_bg_masks, mask_bboxes, text_regions)
     else:
         # Remove only text
-        qs_imgs_refined = removal_text(qs_imgs, text_regions, "CBHC")
+        qs_imgs_refined = removal_text(qs_imgs, text_regions)
 
     # Generate query set assignments
     metrics_f = [get_measure(m) for m in args.matching_measures]
@@ -207,8 +208,13 @@ def match_paintings(args):
         print("Accuracy", acc)
         print("F1-measure", f1)
 
+    # TODO: If not enough matches -> Fill with random paintings
+
     # Evaluate painting matching
     if type(qs_gts) == list:
+        # TODO: Compute F1 for painting included/not included
+
+        # Compute MAP@1 and MAP@5
         qs_gts = reformat_qs_gts(qs_gts)
         qs_gts = np.array(qs_gts).reshape(-1, 1)        
         if qs_gts[0].dtype == 'O':

@@ -78,8 +78,6 @@ def edge_segmentation(img):
     kernel = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]).astype(datatype)
 
     kernel = np.ones((7,7), dtype=np.uint8)
-    # We are going to use the saturation channel from HSV
-    #img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)[:, :, 1]
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     edges = cv2.Canny(img, 30, 30)
@@ -101,10 +99,8 @@ def edge_segmentation(img):
 
     top_two_conn_comp_idx = sizes.argsort()
     top_two_conn_comp_idx = top_two_conn_comp_idx[top_two_conn_comp_idx!=0]
-    if len(top_two_conn_comp_idx) > 1:
-        top_two_conn_comp_idx = top_two_conn_comp_idx[[-2,-1]][::-1]
-    else:
-        top_two_conn_comp_idx = top_two_conn_comp_idx[[-1]][::-1]
+    idxs_tt = ((np.arange(0, min(3, len(top_two_conn_comp_idx)))+1)*(-1))[::-1]
+    top_two_conn_comp_idx = top_two_conn_comp_idx[idxs_tt][::-1]
     
     idxs = [idx for idx in top_two_conn_comp_idx]
 
@@ -112,30 +108,39 @@ def edge_segmentation(img):
     bc[output == idxs[0]] = 255
     bc = create_convex_painting(mask, bc)
 
-    bc = refine_mask(img, bc, get_bbox(bc))
+    #bc = refine_mask(img, bc, get_bbox(bc))
 
     if len(idxs) > 1:
         sbc = np.zeros(output.shape)
         sbc[output == idxs[1]] = 255
         sbc = create_convex_painting(mask, sbc)
-        if sbc.astype(np.uint8).sum() > 0:
-            sbc = refine_mask(img, sbc, get_bbox(sbc))
+        #if sbc.astype(np.uint8).sum() > 0:
+        #    sbc = refine_mask(img, sbc, get_bbox(sbc))
+
+        if len(idxs) > 2:
+            tbc = np.zeros(output.shape)
+            tbc[output == idxs[2]] = 255
+            tbc = create_convex_painting(mask, tbc)
+            #if tbc.astype(np.uint8).sum() > 0:
+            #    tbc = refine_mask(img, tbc, get_bbox(tbc))
 
     bboxes = [get_bbox(bc)]
     resulting_masks = bc
     splitted_resulting_masks = [bc]
 
     # Second painting if first one does not take most part + more or less a rectangular shape + no IoU
-    cv2.imshow("img", cv2.resize(img,(512,512)))
-    cv2.imshow("mask1", cv2.resize(bc,(512,512)))
-    if len(idxs) > 1:
-        cv2.imshow("mask2", cv2.resize(sbc,(512,512)))
-    cv2.waitKey(0)
     if len(idxs) > 1:
         if not takes_most_part_image(bc) and regular_shape(sbc) and check_no_iou(bc, sbc):
             bboxes.append(get_bbox(sbc))
             resulting_masks = np.logical_or(resulting_masks==255, sbc==255).astype(np.uint8)*255
             splitted_resulting_masks.append(sbc)
+
+            # Third painting
+            if len(idxs) > 2:
+                if regular_shape(tbc) and check_no_iou(bc, tbc) and check_no_iou(sbc, tbc):
+                    bboxes.append(get_bbox(tbc))
+                    resulting_masks = np.logical_or(resulting_masks==255, tbc==255).astype(np.uint8)*255
+                    splitted_resulting_masks.append(tbc)
     
     return resulting_masks, bboxes, splitted_resulting_masks
 
@@ -340,56 +345,32 @@ def create_rectangular_painting(mask, component_mask):
         polished_mask = cv2.morphologyEx(polished_mask, cv2.MORPH_OPENss, kernel, borderValue=0)
     return polished_mask[p:polished_mask.shape[0]-p, p:polished_mask.shape[1]-p]
 
-def removal_bg_text(qs_imgs, p_bg_masks, p_bg_annotations, p_text_annotations, method_matching):
+def removal_bg_text(qs_imgs, p_bg_masks, p_bg_annotations, p_text_annotations):
     resulting_images = []
-    if method_matching == "CBHC" or method_matching == "CBHCM":
-        for i in range(len(p_bg_masks)):
-            painting_imgs = []
-            for j in range(len(p_bg_masks[i])):
-                bbox_painting = p_bg_annotations[i][j]
-                cropped_img = qs_imgs[i][bbox_painting[0]:bbox_painting[2], bbox_painting[1]:bbox_painting[3]]
-                bbox_text = p_text_annotations[i][j]
-                bbox_text = [bbox_text[1]-bbox_painting[0], bbox_text[0]-bbox_painting[1], bbox_text[3]-bbox_painting[0], bbox_text[2]-bbox_painting[1]]
-                mask = np.zeros((cropped_img.shape[0], cropped_img.shape[1])).astype(np.uint8)
-                mask[bbox_text[0]:bbox_text[2], bbox_text[1]:bbox_text[3]] = 255
-                cropped_img = cv2.inpaint(cropped_img, mask, 3, cv2.INPAINT_TELEA)
-                painting_imgs.append(cropped_img)
-            resulting_images.append(painting_imgs)
-    else:
-        for i in range(len(p_bg_masks)):
-            painting_imgs = []
-            for j in range(len(p_bg_masks[i])):
-                bbox_painting = p_bg_annotations[i][j]
-                mask_bg = p_bg_masks[i][j].astype(bool)
-                bbox_text = p_text_annotations[i][j]
-                bbox_text = [bbox_text[1], bbox_text[0], bbox_text[3], bbox_text[2]]
-                mask = np.zeros((mask_bg.shape[0], mask_bg.shape[1])).astype(bool)
-                mask[bbox_text[0]:bbox_text[2], bbox_text[1]:bbox_text[3]] = True
-                total_mask = np.logical_or(mask_bg, mask)
-                painting_imgs.append(qs_imgs[i][total_mask])
-            resulting_images.append(painting_imgs)
+    for i in range(len(p_bg_masks)):
+        painting_imgs = []
+        for j in range(len(p_bg_masks[i])):
+            bbox_painting = p_bg_annotations[i][j]
+            cropped_img = qs_imgs[i][bbox_painting[0]:bbox_painting[2], bbox_painting[1]:bbox_painting[3]]
+            bbox_text = p_text_annotations[i][j]
+            bbox_text = [bbox_text[1]-bbox_painting[0], bbox_text[0]-bbox_painting[1], bbox_text[3]-bbox_painting[0], bbox_text[2]-bbox_painting[1]]
+            mask = np.zeros((cropped_img.shape[0], cropped_img.shape[1])).astype(np.uint8)
+            mask[bbox_text[0]:bbox_text[2], bbox_text[1]:bbox_text[3]] = 255
+            cropped_img = cv2.inpaint(cropped_img, mask, 3, cv2.INPAINT_TELEA)
+            painting_imgs.append(cropped_img)
+        resulting_images.append(painting_imgs)
     return resulting_images
 
-def removal_text(qs_imgs, p_text_annotations, method_matching):
+def removal_text(qs_imgs, p_text_annotations):
     resulting_images = []
-    if method_matching == "CBHC" or method_matching == "CBHCM":
-        for i in range(len(p_text_annotations)):
-            bbox_text = p_text_annotations[i][0]
-            bbox_text = [bbox_text[1], bbox_text[0], bbox_text[3], bbox_text[2]]
-            mask = np.zeros((qs_imgs[i].shape[0], qs_imgs[i].shape[1])).astype(np.uint8)
-            mask[bbox_text[0]:bbox_text[2],bbox_text[1]:bbox_text[3]] = 255
-            cropped_img = qs_imgs[i]
-            cropped_img = cv2.inpaint(cropped_img, mask, 3, cv2.INPAINT_TELEA)
-            resulting_images.append([cropped_img])
-    else:
-        for i in range(len(p_text_annotations)):
-            bbox_text = p_text_annotations[i][0]
-            bbox_text = [bbox_text[1], bbox_text[0], bbox_text[3], bbox_text[2]]
-            mask = np.zeros((qs_imgs[i].shape[0], qs_imgs[i].shape[1])).astype(np.uint8)
-            mask[bbox_text[0]:bbox_text[2],bbox_text[1]:bbox_text[3]] = 255
-            mask = mask!=255
-            cropped_img = qs_imgs[i]
-            resulting_images.append([cropped_img[mask]])
+    for i in range(len(p_text_annotations)):
+        bbox_text = p_text_annotations[i][0]
+        bbox_text = [bbox_text[1], bbox_text[0], bbox_text[3], bbox_text[2]]
+        mask = np.zeros((qs_imgs[i].shape[0], qs_imgs[i].shape[1])).astype(np.uint8)
+        mask[bbox_text[0]:bbox_text[2],bbox_text[1]:bbox_text[3]] = 255
+        cropped_img = qs_imgs[i]
+        cropped_img = cv2.inpaint(cropped_img, mask, 3, cv2.INPAINT_TELEA)
+        resulting_images.append([cropped_img])
 
     return resulting_images
 
