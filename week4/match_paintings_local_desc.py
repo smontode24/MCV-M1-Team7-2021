@@ -59,6 +59,8 @@ def parse_input_args():
                         help="Local descriptor [SIFT, BRIEF, ... ]")
     parser.add_argument("-km", type=str, default="BF",
                         help="Keypoint matching method [BF (brute force), ... ]")
+    parser.add_argument("-thr_matches", type=int, default=14,
+                        help="Minimum number of matches to consider one image as being in the database")
     
     #### Options for debug purposes
     parser.add_argument("-d", "--debug", default=0, type=int,
@@ -165,7 +167,7 @@ def match_paintings(args):
 
     # Generate query set assignments
     num_matches = painting_matchings_local_desc(qs_imgs_refined, db_imgs, text_masks, args)
-    assignments = best_matches_from_num_matches(num_matches, 10, thr=14)
+    assignments = best_matches_from_num_matches(num_matches, 10, thr=args.thr_matches)
     print("Matching in", time()-t0,"s")
 
     # If query set annotations are available, evaluate
