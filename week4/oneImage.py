@@ -97,6 +97,8 @@ if __name__ == "__main__":
     # Path to image not in DB
     path2 = "qsd1_w4/00020.jpg"
     path2 = absolutePath(path2)
+    path3 = "qsd1_w4/00017.png"
+    path3 = absolutePath(path3)
 
 
     imgDB = openImage(path0)
@@ -111,9 +113,15 @@ if __name__ == "__main__":
     # Create ORB detector
     orb = cv2.ORB_create()
 
+    # Create self-made mask
+    # Setting up directly the points of the text
+    mask1 = openImage(path3)
+    # Modifying mask1 and deleting textbox
+    cv2.rectangle(mask1, (216,732),(606,825),(0,0,0),-1)
+
     # Find keypoints for each image
     kp1 = orb.detect(imgDB,None)
-    kp2 = orb.detect(imgIN,None)
+    kp2 = orb.detect(imgIN, mask=mask1) # << This can be [inputs and masks ... arrays]
     kp3 = orb.detect(imgNOT,None)
 
     # Compute de descriptor
@@ -134,8 +142,10 @@ if __name__ == "__main__":
     matches1 = bf.match(des1, des2)
 
     ordered_matches = sorted(matches1, key=compareDistances)
+    #TODO: Create a vector ordered by distance
 
-    #matches1 = sorted(matches1)
+    # PART 2:
+    # Tell the descriptor not to use points in mask
     img3 = cv2.drawMatches(imgDB, kp1, imgIN, kp2, matches1[:10], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     img4 = cv2.drawMatches(imgDB, kp1, imgIN, kp2, ordered_matches[:10], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     cv2.imshow("Matching", img3)
