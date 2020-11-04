@@ -14,7 +14,16 @@ from scipy import ndimage
 import numpy as np
 from matplotlib import pyplot as plt
 import math
+from operator import itemgetter
 
+# Own coded comparator, in order to order nested lists in Python
+def compareDistances (dMatch):
+    if dMatch.distance < dMatch.distance:
+        return -1
+    elif dMatch.distance > dMatch.distance:
+        return 1
+    else:
+        return 0
 
 # RETURN: Given a relative path, it return it's absolute
 def absolutePath(relative):
@@ -116,10 +125,21 @@ if __name__ == "__main__":
     imgIN_drawn = cv2.drawKeypoints(imgIN, kp2, None, color=(0,255,0), flags=0)
     imgNOT_drawn = cv2.drawKeypoints(imgNOT, kp3, None, color=(0,255,0), flags=0)
 
-    cv2.imshow("Image from the DB", imgDB_drawn)
-    cv2.imshow("Image IN the DB", imgIN_drawn)
-    cv2.imshow("Image NOT in the DB", imgNOT_drawn)
+    #cv2.imshow("Image from the DB", imgDB_drawn)
+    #cv2.imshow("Image IN the DB", imgIN_drawn)
+    #cv2.imshow("Image NOT in the DB", imgNOT_drawn)
 
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    # Match descriptors.
+    matches1 = bf.match(des1, des2)
+
+    ordered_matches = sorted(matches1, key=compareDistances)
+
+    #matches1 = sorted(matches1)
+    img3 = cv2.drawMatches(imgDB, kp1, imgIN, kp2, matches1[:10], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    img4 = cv2.drawMatches(imgDB, kp1, imgIN, kp2, ordered_matches[:10], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    cv2.imshow("Matching", img3)
+    cv2.imshow("Matching ordered", img4)
     cv2.waitKey()
 
     print("hey, stop!")
