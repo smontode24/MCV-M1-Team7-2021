@@ -18,12 +18,7 @@ from operator import itemgetter
 
 # Own coded comparator, in order to order nested lists in Python
 def compareDistances (dMatch):
-    if dMatch.distance < dMatch.distance:
-        return -1
-    elif dMatch.distance > dMatch.distance:
-        return 1
-    else:
-        return 0
+    return dMatch.distance
 
 # RETURN: Given a relative path, it return it's absolute
 def absolutePath(relative):

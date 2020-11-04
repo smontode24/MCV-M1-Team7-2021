@@ -2,6 +2,10 @@ import cv2
 import numpy as np
 from debug_utils import *
 
+def add_kp_args(parser):
+    parser.add_argument("--orb_fastthresh", default=15, type=int, help="matching measure in brute force method")
+    return parser
+
 def compute_keypoints(image, mask, method_name, options):
     method = get_method(method_name)
     kp = method(image, mask, options)
@@ -32,7 +36,7 @@ def orb_detect(image, mask, options):
         mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_AREA)
         mask = (mask==0).astype(np.uint8)*255
 
-    orb = cv2.ORB_create(WTA_K=4, fastThreshold=15)
+    orb = cv2.ORB_create(fastThreshold=options.orb_fastthresh) # WTA_K=4, 
     keypoints = orb.detect(grayscale_image, mask=mask)
     return keypoints
 

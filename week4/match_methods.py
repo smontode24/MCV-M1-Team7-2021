@@ -129,7 +129,7 @@ def painting_matchings_local_desc(query_imgs, db_imgs, text_masks, options):
     desc_db = descriptor_extraction(db_imgs, None, kp_db, options)
 
     ## Match local descriptors
-    num_matches = match_descriptors_qs_db(desc_qs, desc_db, options.km, options)
+    num_matches = match_descriptors_qs_db(tmp_img_format, db_imgs, desc_qs, desc_db, kp_qs, kp_db, options.km, options)
     return num_matches
 
 def best_matches_from_num_matches(num_matches, max_rank, thr=3):

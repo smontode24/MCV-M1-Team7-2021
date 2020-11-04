@@ -32,8 +32,6 @@ which includes instructions to install it in most common used systems.
 `python match\_paintings.py <path_to_db> (e.g., /home/sergio/MCV/M1/DB) <db_folder_name> (e.g., BBDD) <query_set_folder_name> (e.g., qsd1_w1) --masking <0 don't / 1 apply mask> -rmm <list of retrieval methods (1 or more)> -mm <name of the masking method> -tm <name of the text detection method> --matching_measures <measures to use to compare the descriptor of each method (1 or more)> --output_pkl <path to save pkl file with query assignments> --output_mask <folder to save mask images> --opkl_text <path to save pkl file with text bounding boxes>`
 
 # Execution example with 1 descriptor (text)
-"", "", "qsd1_w3", "--masking", "0", "-tm", "MM2", "-d", "1", 
-                "--matching_measures", "levenshtein", "-rmm", "text", "-w", "1", "--use_boxes_annotations", "0", "--filter_type", "median"
 `python match\_paintings.py /home/sergio/MCV/M1/DB BBDD qsd1_w3 --masking 0 -rmm text --matching_measures levenshtein -tm MM2 --filter_type median -w 1`
 
 # Execution example with 3 descriptors

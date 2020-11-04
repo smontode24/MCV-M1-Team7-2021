@@ -16,7 +16,9 @@ from filtering import *
 import numpy as np
 import cv2
 import os
-from local_descriptors_match import argparser_add_opts
+from local_descriptors_match import add_md_args
+from keypoint_finder import add_kp_args
+from descriptors_local import add_ld_args
 
 def parse_input_args():
     """ Parse program arguments """
@@ -63,7 +65,10 @@ def parse_input_args():
                        help="shows images and some steps for debugging (0 no, 1 yes)")
     parser.add_argument("--use_boxes_annotations", default=0, type=int,
                        help="use boxes annotations (0 no, 1 yes)")
-    parser = argparser_add_opts(parser)
+
+    parser = add_md_args(parser)
+    parser = add_ld_args(parser)
+    parser = add_kp_args(parser)
     args = parser.parse_args()
 
     #Awesome checks to avoid "STUPID" combinations of arguments

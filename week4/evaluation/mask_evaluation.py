@@ -301,8 +301,8 @@ def biggest_iou_order(boxes, qs_gts_bboxes):
                 best_assignment = assignment
             assignment += 1 
 
+        assignments.append(available_idx[best_assignment])
         del available_idx[best_assignment]
-        assignments.append(best_assignment)
     
     return assignments
     

@@ -1,6 +1,10 @@
 import cv2
 import numpy as np
 
+def add_ld_args(parser):
+    parser.add_argument("--orb_wtak", default=4, type=int, help="matching measure in brute force method")
+    return parser
+
 def compute_local_desc(image, mask, keypoint, method_name, options):
     method = get_method(method_name)
     return method(image, keypoint, mask, options)
@@ -24,7 +28,7 @@ def orb_descriptor(image, kp, mask, options):
         mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_AREA)
         mask = (mask==0).astype(np.uint8)*255
 
-    orb = cv2.ORB_create(WTA_K=4)
+    orb = cv2.ORB_create(WTA_K=options.orb_wtak)
     descriptor = orb.compute(grayscale_image, kp)[1]
     return descriptor
 
