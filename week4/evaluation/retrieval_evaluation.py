@@ -1,5 +1,6 @@
 import numpy as np
 from evaluation.mask_evaluation import performance_evaluation_window
+import matplotlib.pyplot as plt
 
 """
 MAP metric from https://github.com/benhamner/Metrics/blob/master/Python/ml_metrics/average_precision.py
@@ -61,9 +62,25 @@ def mapk(actual, predicted, k=10):
     """
     return np.mean([apk(a,p,k) for a,p in zip(actual, predicted)])
 
+def show_f1_scores(top_k_matches, num_matches, gts, max_matches = 100):
+    nms = []
+    f1s = []
+
+    for nm in np.arange(max_matches):
+        top_k_matches = np.argpartition(num_matches, [-1])[:,-1:][:,::-1]
+        for i in range(len(top_k_matches)):
+            if num_matches[i, top_k_matches[i][0]] < nm:
+                top_k_matches[i][0] = -1
+        f1s.append(f1_id_in_db(top_k_matches, gts))
+        nms.append(nm)
+
+    plt.plot(nms, f1s)
+    plt.ylim((0,1))
+    plt.show()
+
 def f1_id_in_db(predicted, gts):
-    assignment_in_db = np.array([bool(gt[0] == -1) for gt in gts])
-    predicted_in_db = np.array([bool(pred[0] == -1) for pred in predicted])
+    assignment_in_db = np.array([bool(gt[0] != -1) for gt in gts])
+    predicted_in_db = np.array([bool(pred[0] != -1) for pred in predicted])
     TP = (assignment_in_db == predicted_in_db).astype(np.uint8).sum() 
     FP = (np.logical_not(assignment_in_db) == predicted_in_db).astype(np.uint8).sum() 
     FN = (assignment_in_db == np.logical_not(predicted_in_db)).astype(np.uint8).sum()

@@ -227,9 +227,9 @@ def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes
             new_pred_bboxes.append([pred_bboxes[i][idx] for idx in b1_idx])
             
             # First sort real
-            assignments = biggest_iou_order(new_masked_boxes, qs_gts_bboxes)
+            assignments = biggest_iou_order(new_masked_boxes[i], qs_gts_bboxes[i])
 
-            new_qs_gts_matching.append([qs_gts_matching[i][0][assgn] for assgn in assignments])
+            new_qs_gts_matching.append([[qs_gts_matching[i][0][assgn] for assgn in assignments]])
             new_qs_gts_bboxes.append([qs_gts_bboxes[i][assgn] for assgn in assignments])
         else:
             new_qs_gts_matching.append(qs_gts_matching[i])
@@ -283,7 +283,6 @@ def sort_predictions_no_gt(pred_bboxes, masked_regions=None, masked_boxes=None, 
     return result
 
 def box_closer_order(boxes):
-    #if len(boxes) == 2:
     dist = np.array([x[0]**2+x[1]**2 for x in boxes])
     return np.argsort(dist)
 

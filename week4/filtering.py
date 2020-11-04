@@ -13,12 +13,12 @@ def denoise_images(qs_imgs, method_name="median"):
     noise_removal_method = get_noise_removal_method(method_name) 
     denoised_imgs = [denoise_median(qs_img) for qs_img in qs_imgs]
 
-    if isDebug():
-        for denoised_img, qs_img in zip(denoised_imgs, qs_imgs):
-            cv2.imshow("original image", res(qs_img))
-            cv2.imshow("denoised image", res(denoised_img))
-            cv2.imshow("difference", res(np.abs(qs_img-denoised_img).astype(np.uint8)))
-            cv2.waitKey(0)
+    #if isDebug():
+    #    for denoised_img, qs_img in zip(denoised_imgs, qs_imgs):
+    #        cv2.imshow("original image", res(qs_img))
+    #        cv2.imshow("denoised image", res(denoised_img))
+    #        cv2.imshow("difference", res(np.abs(qs_img-denoised_img).astype(np.uint8)))
+    #        cv2.waitKey(0)
     
     return denoised_imgs
 

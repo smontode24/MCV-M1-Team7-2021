@@ -6,89 +6,10 @@ from debug_utils import *
 from tqdm import tqdm
 from inspect import signature
 from descriptors import *
+from local_descriptors_match import match_descriptors_qs_db
+from keypoint_finder import compute_keypoints
+from descriptors_local import compute_local_desc
 
-def painting_matching(imgs, db_imgs, method_name, metric=js_div, splits=30, max_rank=10): 
-    """ Obtain query images matches.
-        Params:
-            - imgs: query set of images [img1, img2,...]
-            - db_imgs: database images
-            - metric: Similarity measure to quantify the distance between to histograms
-            - method_name: method to apply
-            - metric: l1_dist,... (which distance / similarity to use)
-        Returns: 
-            Top k matches for each image of the query set in the database
-    """
-    matching_method = get_method(method_name)
-    tmp_img_format = []
-    for i in range(len(imgs)):
-        for j in range(len(imgs[i])):
-            tmp_img_format.append(imgs[i][j])
-
-    db_img_splits = [i*len(db_imgs)//splits for i in range(splits-1)]
-    
-    scores = []
-    query_descriptors = np.array([matching_method(img) for img in tmp_img_format])
-    print("Starting db extraction + matching")
-    if splits > 1:
-        for split in tqdm(range(splits-2)):
-            db_descriptors = np.array([matching_method(db_img) for db_img in db_imgs[db_img_splits[split]:db_img_splits[split+1]]])
-            scores.append(metric(query_descriptors, db_descriptors))
-        
-        db_descriptors = np.array([matching_method(db_img) for db_img in db_imgs[db_img_splits[-1]:]])
-        scores.append(metric(query_descriptors, db_descriptors))
-        
-        # concatenate all the results
-        scores = np.concatenate(scores, 1)
-    else:
-        db_descriptors = np.array([matching_method(db_img) for db_img in db_imgs])
-        scores = metric(query_descriptors, db_descriptors)
-    
-    top_k_matches = np.argpartition(scores, list(range(max_rank)))[:, :max_rank]
-    return top_k_matches
-
-def painting_matching_wmasks(imgs, db_imgs, method_name, text_masks, metric=js_div, splits=30, max_rank=10): 
-    """ Obtain query images matches.
-        Params:
-            - imgs: query set of images [img1, img2,...]
-            - db_imgs: database images
-            - metric: Similarity measure to quantify the distance between to histograms
-            - method_name: method to apply
-            - metric: l1_dist,... (which distance / similarity to use)
-        Returns: 
-            Top k matches for each image of the query set in the database
-    """
-    matching_method = get_method(method_name)
-    tmp_img_format = []
-    tmp_mask_format = []
-    for i in range(len(imgs)):
-        for j in range(len(imgs[i])):
-            tmp_img_format.append(imgs[i][j])
-            tmp_mask_format.append(text_masks[i][j])
-
-    db_img_splits = [i*len(db_imgs)//splits for i in range(splits-1)]
-    
-    scores = []
-    query_descriptors = np.array([mrhm(img, mask) for img, mask in zip(tmp_img_format, tmp_mask_format)], dtype=np.ndarray)
-
-    print("Starting db extraction + matching")
-    if splits > 1:
-        for split in tqdm(range(splits-2)):
-            db_descriptors = np.array([mrhm(db_img) for db_img in db_imgs[db_img_splits[split]:db_img_splits[split+1]]])
-            scores.append(metric(query_descriptors, db_descriptors))
-        
-        db_descriptors = np.array([mrhm(db_img) for db_img in db_imgs[db_img_splits[-1]:]])
-        scores.append(metric(query_descriptors, db_descriptors))
-        
-        # concatenate all the results
-        scores = np.concatenate(scores, 1)
-    else:
-        db_descriptors = np.array([mrhm(db_img) for db_img in db_imgs])
-        scores = metric(query_descriptors, db_descriptors)
-    
-    top_k_matches = np.argpartition(scores, list(range(max_rank)))[:, :max_rank]
-    return top_k_matches
-
-# WIP: Multiple criteria
 def painting_matching_ml(imgs, db_imgs, method_list, text_masks, author_text, gt_text, metrics, weights, splits=30, max_rank=10): 
     """ Obtain query images matches.
         Params:
@@ -129,9 +50,6 @@ def painting_matching_ml(imgs, db_imgs, method_list, text_masks, author_text, gt
     
     # concatenate all the results
     scores = np.concatenate(scores, 1)
-    """ else:
-        db_descriptors = np.array([mrhm(db_img) for db_img in db_imgs])
-        scores = compare_descriptors(query_descriptors, db_descriptors, metrics, method_list, weights) """
     
     top_k_matches = np.argpartition(scores, list(range(max_rank)))[:, :max_rank]
     return top_k_matches
@@ -192,6 +110,58 @@ def compare_descriptors(query_descriptors, db_descriptors, descriptor_comp_metho
         sys.exit("ABORTING ##2")
     return scores
 
+def painting_matchings_local_desc(query_imgs, db_imgs, text_masks, options):
+    """
+    Return number of local descriptor matches for each pair of query image / database image.
+    """
+    tmp_img_format = []
+    tmp_mask_format = []
+    for i in range(len(query_imgs)):
+        for j in range(len(query_imgs[i])):
+            tmp_img_format.append(query_imgs[i][j])
+            tmp_mask_format.append(text_masks[i][j])
+
+    ## Keypoint + local descriptor extraction
+    kp_qs = keypoint_extraction(tmp_img_format, tmp_mask_format, options)
+    desc_qs = descriptor_extraction(tmp_img_format, tmp_mask_format, kp_qs, options)
+
+    kp_db = keypoint_extraction(db_imgs, None, options)
+    desc_db = descriptor_extraction(db_imgs, None, kp_db, options)
+
+    ## Match local descriptors
+    num_matches = match_descriptors_qs_db(desc_qs, desc_db, options.km, options)
+    return num_matches
+
+def best_matches_from_num_matches(num_matches, max_rank, thr=3):
+    ## Top matches based on number of coincidences
+    top_k_matches = np.argpartition(num_matches, np.arange(10)*(-1))[:,-10:][:,::-1]
+
+    ## Set -1 as first element if first number of coincidences < thr
+    for i in range(len(top_k_matches)):
+        if num_matches[i, top_k_matches[i][0]] < thr:
+            top_k_matches[i][0] = -1
+
+    return top_k_matches
+
+def keypoint_extraction(db, masks, options):
+    keypoints_db = []
+    if masks == None:
+        for img in db:
+            keypoints_db.append(compute_keypoints(img, None, options.kd, options))
+    else:
+        for img, mask in zip(db, masks):
+            keypoints_db.append(compute_keypoints(img, mask, options.kd, options))
+    return keypoints_db
+
+def descriptor_extraction(db, masks, keypoints, options):
+    local_descriptors = []
+    if masks == None:
+        for img, kp in zip(db, keypoints):
+            local_descriptors.append(compute_local_desc(img, None, kp, options.kd, options))
+    else:
+        for img, mask, kp in zip(db, masks, keypoints):
+            local_descriptors.append(compute_local_desc(img, mask, kp, options.kd, options))
+    return local_descriptors
 
 ####################
 # Matching methods #
