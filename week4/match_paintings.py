@@ -87,18 +87,6 @@ def match_paintings(args):
         print('MAIN DB: Nothing was found on path: ', args.db_path)
         print('Check that is correct')
         sys.exit("ABORTING: Nothing_in_DB_path")
-    #TODO
-    ''' 
-    if len(db_annotations)==0:
-        print('ANNOTATIONS: Nothing was found on path: ', args.db_anotations)
-        print('Check that is correct')
-        # sys.exit("ABORTING: Nothing_in_ANNOTATIONS_path")
-
-    if len(db_authors) == 0:
-        print('AUTHORS: Nothing was found on path: ', args.db_authors)
-        print('Check that is correct')
-        # sys.exit("ABORTING: Nothing_in_AUTHORS_path")
-    '''
     # Previous checks: if qs_imgs = 0
     if len(qs_imgs) == 0:
         print('QDS: Nothing was found on path: ', args.qs_path)
