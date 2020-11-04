@@ -14,7 +14,16 @@ from scipy import ndimage
 import numpy as np
 from matplotlib import pyplot as plt
 import math
+from operator import itemgetter
 
+# Own coded comparator, in order to order nested lists in Python
+def compareDistances (dMatch):
+    if dMatch.distance < dMatch.distance:
+        return -1
+    elif dMatch.distance > dMatch.distance:
+        return 1
+    else:
+        return 0
 
 # RETURN: Given a relative path, it return it's absolute
 def absolutePath(relative):
@@ -79,250 +88,58 @@ def segmented_intersections(lines):
 # this program focused in one imag
 if __name__ == "__main__":
     # Path to DB image:
-    path0 = "BBDD/bbdd_00219.jpg"
+    path0 = "BBDD/bbdd_00164.jpg"
     path0 = absolutePath(path0)
     print ("Image from the DB: ", path0)
-    # Path to image in QDS1
-    path1 = "qsd1_w2/00004.jpg"
+    # Path to image in DB
+    path1 = "qsd1_w4/00017.jpg"
     path1 = absolutePath(path1)
-    # Path to image in QDS2
-    path2 = "qsd2_w2/00000.jpg"
+    # Path to image not in DB
+    path2 = "qsd1_w4/00020.jpg"
     path2 = absolutePath(path2)
-    # Path to mask in QSD2
-    path3 = "qsd2_w2/00000.png"
-    path3 = absolutePath(path3)
-
-    img0 = openImage(path0)
-    img1 = openImage(path1)
-    img2 = openImage(path2)
-    msk2 = openImage(path3)
-
-    blurred_img2 = cv2.GaussianBlur(img2, (5,5), 0)
-    blurred_img2_7 = cv2.GaussianBlur(img2, (7,7), 0)
-    blurred_img2_9 = cv2.GaussianBlur(img2, (9,9), 0)
-    blurred_img2_11 = cv2.GaussianBlur(img2, (11,11), 0)
-    blurred_img2_75 = cv2.GaussianBlur(img2, (75,75), 0)
-
-    #Extracted from here: https://stackoverflow.com/questions/49732726/how-to-compute-the-gradients-of-image-using-python
-    gradX_0 = ndimage.sobel(img0, axis=0, mode='constant')
-    gradY_0 = ndimage.sobel(img0, axis=1, mode='constant')
-    # Get square root of sum of squares
-    sobel_0 = np.hypot(gradX_0, gradY_0)
-
-    gradX_1 = ndimage.sobel(img1, axis=0, mode='constant')
-    gradY_1 = ndimage.sobel(img1, axis=1, mode='constant')
-    # Get square root of sum of squares
-    sobel_1 = np.hypot(gradX_1, gradY_1)
-
-    gradX_2 = ndimage.sobel(img2, axis=0, mode='constant')
-    gradY_2 = ndimage.sobel(img2, axis=1, mode='constant')
-    # Get square root of sum of squares
-    sobel_2 = np.hypot(gradX_2, gradY_2)
-
-    gradX_m2 = ndimage.sobel(msk2, axis=0, mode='constant')
-    gradY_m2 = ndimage.sobel(msk2, axis=1, mode='constant')
-    # Get square root of sum of squares
-    sobel_m2 = np.hypot(gradX_m2, gradY_m2)
-
-    ## IMAGES IN BW
-    img0_bw = rgb2gray(img0)
-    img1_bw = rgb2gray(img1)
-    img2_bw = rgb2gray(img2)
-    msk2_bw = rgb2gray(msk2)
-    blurred_img2_bw = rgb2gray(blurred_img2)
-    blurred_img2_7_bw = rgb2gray(blurred_img2_7)
-    blurred_img2_9_bw = rgb2gray(blurred_img2_9)
-    blurred_img2_11_bw = rgb2gray(blurred_img2_11)
-    blurred_img2_75_bw = rgb2gray(blurred_img2_75)
 
 
-    ## These gradients are much better. More general (not tinny detailed)
-    ## GRADIENTS IN BW  [USING CV]
-    cv_gradX_0_bw = gradientX(img0_bw)
-    cv_gradY_0_bw = gradientY(img0_bw)
-    # Get square root of sum of squares
-    cv_sobel_0_bw = np.hypot(cv_gradX_0_bw, cv_gradY_0_bw)
-
-    cv_gradX_1_bw = gradientX(img1_bw)
-    cv_gradY_1_bw = gradientY(img1_bw)
-    cv_sobel_1_bw = np.hypot(cv_gradX_1_bw, cv_gradY_1_bw)
-
-    cv_gradX_2_bw = gradientX(img2_bw)
-    cv_gradY_2_bw = gradientY(img2_bw)
-    cv_sobel_2_bw = np.hypot(cv_gradX_2_bw, cv_gradY_2_bw)
-
-    cv_gradX_m2_bw = gradientX(msk2_bw)
-    cv_gradY_m2_bw = gradientY(msk2_bw)
-    cv_sobel_m2_bw = np.hypot(cv_gradX_m2_bw, cv_gradY_m2_bw)
-
-    # Gradient of Blur @ 5 - RGB
-    gradX_2_5 = gradientX(blurred_img2)
-    gradY_2_5 = gradientY(blurred_img2)
-    sobel_2_5 = np.hypot(gradX_2_5, gradY_2_5)
-
-    # Gradient of Blur @ 11 - RGB
-    gradX_2_11 = gradientX(blurred_img2_11)
-    gradY_2_11 = gradientY(blurred_img2_11)
-    sobel_2_11 = np.hypot(gradX_2_11, gradY_2_11)
-
-    # Gradient of Blur @ 75 - RGB
-    gradX_2_75 = gradientX(blurred_img2_75)
-    gradY_2_75 = gradientY(blurred_img2_75)
-    sobel_2_75 = np.hypot(gradX_2_75, gradY_2_75)
-
-    ## BW BLURRED GRADIENTS
-    # Gradient of Blur @ 5 - BW
-    gradX_2_5_bw = gradientX(blurred_img2_bw)
-    gradY_2_5_bw = gradientY(blurred_img2_bw)
-    sobel_2_5_bw = np.hypot(gradX_2_5_bw, gradY_2_5_bw)
-
-    # Gradient of Blur @ 11 - BW
-    gradX_2_11_bw = gradientX(blurred_img2_11_bw)
-    gradY_2_11_bw = gradientY(blurred_img2_11_bw)
-    sobel_2_11_bw = np.hypot(gradX_2_11_bw, gradY_2_11_bw)
-
-    # Gradient of Blur @ 75 - BW
-    gradX_2_75_bw = gradientX(blurred_img2_75_bw)
-    gradY_2_75_bw = gradientY(blurred_img2_75_bw)
-    sobel_2_75_bw = np.hypot(gradX_2_75_bw, gradY_2_75_bw)
-
-    # Apply a Gradient X and Y to the SOBEL GRADIENT OF THE IMAGE
-    gradX_sobel = gradientX(cv_sobel_2_bw)
-    print("Minimum value of SUM is: ", np.amin(gradX_sobel))
-    print("Max value of SUM is: ", np.amax(gradX_sobel))
-
-    gradY_sobel = gradientY(cv_sobel_2_bw)
-    print("-----")
-    print("Minimum value of MIN is: ", np.amin(gradY_sobel))
-    print("Max value of MIN is: ", np.amax(gradY_sobel))
-    sum_of_grad = gradX_sobel+gradY_sobel
-    min_of_grad = gradX_sobel-gradY_sobel
+    imgDB = openImage(path0)
+    imgIN = openImage(path1)
+    imgNOT = openImage(path2)
 
 
-    # as the ndArray have values > 0
-    # NORMALIZE
-    var1 = np.clip(sum_of_grad, 0, 255)
-    data_u8= var1.astype('uint8') #220 different values a
-    # NOTE = Unique with short values = 220
-    # Without shortening values = 220
-    unique = np.unique(data_u8)
+    #cv2.imshow("Image from the DB", imgDB)
+    #cv2.imshow("Image IN the DB", imgIN)
+    #cv2.imshow("Image NOT in the DB", imgNOT)
 
-    # To show the histogram
-    ## If you want, you can use it.... pero el codi estava per a veure histogrames i comprovar
-    ## que les modificacions anteriors estaven bé
-    #plt.hist(data_u8.ravel(), 256, [0, 256]);
-    #plt.show()
+    # Create ORB detector
+    orb = cv2.ORB_create()
 
-    ## Apply Mean
-    ## Els valors al costat son indicatius del valor inicial
-    mean_sum = np.mean(sum_of_grad) ## -256
-    mean_min = np.mean(min_of_grad) ## 686
-    mean_du8 = np.mean(data_u8)     ## 123
+    # Find keypoints for each image
+    kp1 = orb.detect(imgDB,None)
+    kp2 = orb.detect(imgIN,None)
+    kp3 = orb.detect(imgNOT,None)
 
-    #as the mean in u8 format == 123, apply this threshold
-    ## En la seguent linia, per a una imatge data_u8 que té integer_uint8
-    ## d'aqui el seu nom... tots els valors inferiors al seu threshold,
-    ## son posats a 0.
-    ## aquest és un exemple de modificació / binarització de tota la imatge
-    ## fet de forma manual.
-    data_u8[data_u8 <= mean_du8] = 0
-    #print("Minimum value of data_u8 is: ", np.amin(data_u8))
-    #print("Max value of SUM data_u8: ", np.amax(data_u8))
-    unique = np.unique(data_u8) ## 112 -- Quins son els valors que son unics en una imatge que te la meitat = 0
+    # Compute de descriptor
+    kp1, des1 = orb.compute(imgDB, kp1)
+    kp2, des2 = orb.compute(imgIN, kp2)
+    kp3, des3 = orb.compute(imgNOT, kp3)
 
-    medianblur_7 = cv2.medianBlur(data_u8, ksize=7)
-    medianblur_15 = cv2.medianBlur(data_u8, ksize=15)
-    # ME PASSÉ: medianblur_33 = cv2.medianBlur(data_u8, ksize=33)
+    imgDB_drawn = cv2.drawKeypoints(imgDB, kp1, None, color=(0,255,0), flags=0)
+    imgIN_drawn = cv2.drawKeypoints(imgIN, kp2, None, color=(0,255,0), flags=0)
+    imgNOT_drawn = cv2.drawKeypoints(imgNOT, kp3, None, color=(0,255,0), flags=0)
 
-    ## CODI FUNCIÓ HOUGH LINES!!
-    ## A PARTIR D'AQUIÍ ÉS on he obtingut millors resultats
+    #cv2.imshow("Image from the DB", imgDB_drawn)
+    #cv2.imshow("Image IN the DB", imgIN_drawn)
+    #cv2.imshow("Image NOT in the DB", imgNOT_drawn)
 
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    # Match descriptors.
+    matches1 = bf.match(des1, des2)
 
-    ## Copied from documentation: https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html
-    ## Torno a carregar la imatge.
-    ## Tot aquest codi prové de la documentació: https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html
-    ## Si, se que ho he posat 2 vegades. Es perquè quedi clar!
-    src = img2
+    ordered_matches = sorted(matches1, key=compareDistances)
 
-    ## Canny recommended a upper:lower ratio between 2:1 and 3:1. (from documentation)
-    ## TODO: Pots jugar amb els valors de Canny, ja que no els he tocat i m'han funcionat per a la imatge inicial
-    ## Però hi jugaràs, si en altres imatges veus que Canny va malament i no et pilla cap linia del quadre
-    dst = cv2.Canny(src, 200, 600, None, 3)
-
-    cdst = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
-    cdstP = np.copy(cdst)
-
-    ## HOUGH LINES:
-    ## Hi has dos versions. La 2a es la priemra que he trobat. La seguent es la que estic fent servir
-    ## Fora bo anar comparant una o altre.... i jugar amb els caracters
-    linesP = cv2.HoughLinesP(dst, rho=1, theta=np.pi/180, threshold=50,
-                           minLineLength=100, maxLineGap=10)
-    #linesP = cv2.HoughLinesP(dst, 1, np.pi / 180, 50, None, 50, 10)
-
-    # SOURCE size = 140 lines  -- ANotacio utilitzada per veure si anava millorant la detecció de linies
-    # mathematicalLines es un array que intenta expressar les linies d'una manera més humana
-    # amb punts d'inici, final, graus, distàncies....
-    mathematicalLines = []
-    if linesP is not None:
-        for i in range(0, len(linesP)):
-            l = linesP[i][0]
-            start_point = [l[0],l[1],l[2],l[3]]
-            distanceX = abs(l[2]-l[0])
-            distanceY = abs(l[3]-l[1])
-            radians = np.degrees(math.atan2(distanceY, distanceX))
-            hypotenuse = np.hypot(distanceY, distanceX)
-            mathematicalLines.append([start_point, distanceX, distanceY, radians, hypotenuse])
-            #cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0, 0, 255), 3, cv2.LINE_AA)
-
-    verticalLines = [] # SOURCE = 5 || 4
-    horitzontalLines = [] # SOURCE = 17  || 10
-    otherLines = [] # SOURCE = 13 || 3
-    for i in range(0,len(mathematicalLines)):
-        if (-2 <= mathematicalLines[i][3] <= 2):
-            horitzontalLines.append(mathematicalLines[i])
-        elif (88 <= mathematicalLines[i][3] <= 92):
-            verticalLines.append(mathematicalLines[i])
-        else:
-            otherLines.append(mathematicalLines[i])
-    print ("TOTAL of lines: ", len(mathematicalLines))
-
-    ## Lines are defined by:
-    ## tuple of 4 point  [x1, y1, x2, y2]
-    ## >> Note, when creating, you need to create two points : [ P1 (x1,y1) ; P2 (x2, y2) ]
-    ## distance in X [for vertical Lines, should be close to 0]
-    ## distance in y [for horitzontal lines, should be close to 0]
-    ## degrees [of course you can use grad..... but degrees are great]
-    ## lenght [
-
-    for i in range(0, len(horitzontalLines)):
-        #print horitzontal in RED
-        #image_to_be_drawn  // Start point // End Point // color // thickness // AA = Maco (no ho toquis) (opcions: 4 pixels, 8 pixels)
-        cv2.line(cdstP, (horitzontalLines[i][0][0], horitzontalLines[i][0][1]), (horitzontalLines[i][0][2], horitzontalLines[i][0][3]), (0, 0, 255), 3, cv2.LINE_AA)
-
-    print ("Horitzontal lines: ", len(horitzontalLines))
-
-    for i in range(0, len(verticalLines)):
-        #print VERTICAL in GREEN
-        cv2.line(cdstP, (verticalLines[i][0][0], verticalLines[i][0][1]),
-                 (verticalLines[i][0][2], verticalLines[i][0][3]), (0, 255, 0), 3, cv2.LINE_AA)
-        print("LINE ", i, ": ")
-        print("--------------")
-        print(verticalLines[i])
-
-    print("Vertical lines: ", len(verticalLines))
-
-    for i in range(0, len(otherLines)):
-        # print OTHERS in BLUE
-        cv2.line(cdstP, (otherLines[i][0][0], otherLines[i][0][1]),
-                 (otherLines[i][0][2], otherLines[i][0][3]), (255, 0, 0), 3, cv2.LINE_AA)
-
-    print("Other lines: ", len(otherLines))
-
-
-    ## Ho comento perquè no és necessari
-    ## cv2.imshow("Source", src) # Imatge original
-    cv2.imshow("Detected Lines - Probabilistic Line Transform", cdstP)
-
+    #matches1 = sorted(matches1)
+    img3 = cv2.drawMatches(imgDB, kp1, imgIN, kp2, matches1[:10], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    img4 = cv2.drawMatches(imgDB, kp1, imgIN, kp2, ordered_matches[:10], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    cv2.imshow("Matching", img3)
+    cv2.imshow("Matching ordered", img4)
     cv2.waitKey()
 
     print("hey, stop!")
