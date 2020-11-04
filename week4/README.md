@@ -22,7 +22,13 @@ In order to run the code, you should have Tesseract installed in your OS.
 You can visit [this link](https://stackoverflow.com/questions/50951955/pytesseract-tesseractnotfound-error-tesseract-is-not-installed-or-its-not-i)
 which includes instructions to install it in most common used systems.
 
-## Instructions
+## Instructions (keypoint-based)
+`python match\_paintings\_local\_desc.py <path_to_db> (e.g., /home/sergio/MCV/M1/DB) <db_folder_name> (e.g., BBDD) <query_set_folder_name> (e.g., qsd1_w1) --masking <0 don't / 1 apply mask> -kd <keypoint detector (e.g., ORB)> -ld <local descriptor (e.g., ORB)> -km <descriptor matching method (e.g., BF)> -mm <name of the masking method> -tm <name of the text detection method> --output_pkl <path to save pkl file with query assignments> --output_mask <folder to save mask images> --opkl_text <path to save pkl file with text bounding boxes>`
+
+# Example
+`python match\_paintings\_local\_desc.py /home/sergio/MCV/M1/DB BBDD qsd4_w1 --masking 1 -kd ORB -ld ORB -km BF`
+
+## Instructions (no keypoint-based)
 `python match\_paintings.py <path_to_db> (e.g., /home/sergio/MCV/M1/DB) <db_folder_name> (e.g., BBDD) <query_set_folder_name> (e.g., qsd1_w1) --masking <0 don't / 1 apply mask> -rmm <list of retrieval methods (1 or more)> -mm <name of the masking method> -tm <name of the text detection method> --matching_measures <measures to use to compare the descriptor of each method (1 or more)> --output_pkl <path to save pkl file with query assignments> --output_mask <folder to save mask images> --opkl_text <path to save pkl file with text bounding boxes>`
 
 # Execution example with 1 descriptor (text)
