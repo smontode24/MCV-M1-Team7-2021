@@ -95,9 +95,30 @@ if __name__ == "__main__":
     imgNOT = openImage(path2)
 
 
-    cv2.imshow("Image from the DB", imgDB)
-    cv2.imshow("Image IN the DB", imgIN)
-    cv2.imshow("Image NOT in the DB", imgNOT)
+    #cv2.imshow("Image from the DB", imgDB)
+    #cv2.imshow("Image IN the DB", imgIN)
+    #cv2.imshow("Image NOT in the DB", imgNOT)
+
+    # Create ORB detector
+    orb = cv2.ORB_create()
+
+    # Find keypoints for each image
+    kp1 = orb.detect(imgDB,None)
+    kp2 = orb.detect(imgIN,None)
+    kp3 = orb.detect(imgNOT,None)
+
+    # Compute de descriptor
+    kp1, des1 = orb.compute(imgDB, kp1)
+    kp2, des2 = orb.compute(imgIN, kp2)
+    kp3, des3 = orb.compute(imgNOT, kp3)
+
+    imgDB_drawn = cv2.drawKeypoints(imgDB, kp1, None, color=(0,255,0), flags=0)
+    imgIN_drawn = cv2.drawKeypoints(imgIN, kp2, None, color=(0,255,0), flags=0)
+    imgNOT_drawn = cv2.drawKeypoints(imgNOT, kp3, None, color=(0,255,0), flags=0)
+
+    cv2.imshow("Image from the DB", imgDB_drawn)
+    cv2.imshow("Image IN the DB", imgIN_drawn)
+    cv2.imshow("Image NOT in the DB", imgNOT_drawn)
 
     cv2.waitKey()
 
