@@ -18,6 +18,7 @@ def add_kp_args(parser):
     return parser
 
 def compute_keypoints(image, mask, method_name, options):
+    print("keypoint_finder.py ==> compute_keypoints")
     method = get_method(method_name)
     kp = method(image, mask, options)
 
@@ -29,6 +30,7 @@ def compute_keypoints(image, mask, method_name, options):
     return kp
 
 def orb_detect(image, mask, options):
+    print("keypoint_finder.py ==> orb_detect")
     """
     Extract descriptors from image using the ORB method.
     Args:
@@ -67,6 +69,7 @@ def akaze_detect(image, mask, options):
         descriptors (ndarray): 2D array of type np.float32 and shape (#keypoints x 128)
             containing local descriptors for the keypoints.
     """
+    print("keypoint_finder.py ==> akaze_detect")
     grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     grayscale_image = cv2.resize(grayscale_image, (256, 256), interpolation=cv2.INTER_AREA)
 

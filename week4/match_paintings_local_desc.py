@@ -195,9 +195,10 @@ def match_paintings(args):
         qs_gts = np.array(qs_gts).reshape(-1, 1)        
         if qs_gts[0].dtype == 'O':
             qs_gts = np.concatenate([[q for q in qs_gt[0]] for qs_gt in qs_gts]).reshape(-1, 1)
-        
-        # Compute F1 for painting included/not included
-        show_f1_scores(assignments, num_matches, qs_gts, max_matches = 50)
+
+        if isDebug():
+            # Compute F1 for painting included/not included
+            show_f1_scores(assignments, num_matches, qs_gts, max_matches = 50)
 
         map_at_1 = mapk(qs_gts, assignments, k=1)
         map_at_5 = mapk(qs_gts, assignments, k=5)
