@@ -295,7 +295,7 @@ def biggest_iou_order(boxes, qs_gts_bboxes):
         best_assignment = 0
         assignment = 0
         for idx in available_idx:
-            interse = bb_int_a_over_b([b[1],b[0],b[3],b[1]], qs_gts_bboxes[idx])
+            interse = bb_intersection_over_union([b[1],b[0],b[3],b[1]], qs_gts_bboxes[idx])
             if interse > max_int:
                 max_int = interse
                 best_assignment = assignment

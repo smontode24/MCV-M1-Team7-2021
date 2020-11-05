@@ -137,7 +137,14 @@ def match_paintings(args):
 
         if args.use_boxes_annotations == 0:
             # Compute for each painting its text segmentation
-            text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
+            bboxes_file = path.join(args.ds_path, args.qs_path, "bboxes_pred.pkl")
+            if not os.path.isfile(bboxes_file):
+                text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
+                to_pkl([text_masks, text_regions, relative_boxes], bboxes_file)
+            else:
+                text_masks, text_regions, relative_boxes = load_plain_pkl(bboxes_file)
+                print("Loading previous textboxes!")
+            #text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
         else:
             text_masks, text_regions, relative_boxes = process_gt_text_mask(qs_text_bboxes, mask_bboxes, cropped_qs_imgs)
 
@@ -196,9 +203,9 @@ def match_paintings(args):
         if qs_gts[0].dtype == 'O':
             qs_gts = np.concatenate([[q for q in qs_gt[0]] for qs_gt in qs_gts]).reshape(-1, 1)
 
-        if isDebug():
-            # Compute F1 for painting included/not included
-            show_f1_scores(assignments, num_matches, qs_gts, max_matches = 50)
+        #if isDebug():
+        # Compute F1 for painting included/not included
+        show_f1_scores(assignments, num_matches, qs_gts, max_matches = 50)
 
         map_at_1 = mapk(qs_gts, assignments, k=1)
         map_at_5 = mapk(qs_gts, assignments, k=5)

@@ -122,15 +122,18 @@ def painting_matchings_local_desc(query_imgs, db_imgs, text_masks, options):
             tmp_mask_format.append(text_masks[i][j])
 
     ## Keypoint + local descriptor extraction
+    print("Obtaining query set descriptors")
     kp_qs = keypoint_extraction(tmp_img_format, tmp_mask_format, options)
     desc_qs = descriptor_extraction(tmp_img_format, tmp_mask_format, kp_qs, options)
 
+    print("Obtaining database descriptors")
     kp_db = keypoint_extraction(db_imgs, None, options)
     desc_db = descriptor_extraction(db_imgs, None, kp_db, options)
 
-    ## Match local descriptors
+    ## Match local descriptors                       
+    print("Comparing...")                                                       
     num_matches = match_descriptors_qs_db(tmp_img_format, db_imgs, desc_qs, desc_db, kp_qs, kp_db, options.km, options)
-    return num_matches
+    return num_matches                                                                                                  
 
 def best_matches_from_num_matches(num_matches, max_rank, thr=3):
     ## Top matches based on number of coincidences
@@ -146,20 +149,20 @@ def best_matches_from_num_matches(num_matches, max_rank, thr=3):
 def keypoint_extraction(db, masks, options):
     keypoints_db = []
     if masks == None:
-        for img in db:
+        for img in tqdm(db):
             keypoints_db.append(compute_keypoints(img, None, options.kd, options))
     else:
-        for img, mask in zip(db, masks):
+        for img, mask in tqdm(zip(db, masks)):
             keypoints_db.append(compute_keypoints(img, mask, options.kd, options))
     return keypoints_db
 
 def descriptor_extraction(db, masks, keypoints, options):
     local_descriptors = []
     if masks == None:
-        for img, kp in zip(db, keypoints):
+        for img, kp in tqdm(zip(db, keypoints)):
             local_descriptors.append(compute_local_desc(img, None, kp, options.kd, options))
     else:
-        for img, mask, kp in zip(db, masks, keypoints):
+        for img, mask, kp in tqdm(zip(db, masks, keypoints)):
             local_descriptors.append(compute_local_desc(img, mask, kp, options.kd, options))
     return local_descriptors
 

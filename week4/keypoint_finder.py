@@ -18,7 +18,6 @@ def add_kp_args(parser):
     return parser
 
 def compute_keypoints(image, mask, method_name, options):
-    print("keypoint_finder.py ==> compute_keypoints")
     method = get_method(method_name)
     kp = method(image, mask, options)
 
@@ -30,7 +29,6 @@ def compute_keypoints(image, mask, method_name, options):
     return kp
 
 def orb_detect(image, mask, options):
-    print("keypoint_finder.py ==> orb_detect")
     """
     Extract descriptors from image using the ORB method.
     Args:
@@ -48,11 +46,33 @@ def orb_detect(image, mask, options):
     if mask is not None:
         mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_AREA)
         mask = (mask==0).astype(np.uint8)*255
-
+    
     orb = cv2.ORB_create(fastThreshold=options.orb_fastthresh) # WTA_K=4, 
     keypoints = orb.detect(grayscale_image, mask=mask)
     return keypoints
 
+def brisk_detect(image, mask, options):
+    """
+    Extract descriptors from image using the ORB method.
+    Args:
+        image (ndarray): (H x W) 2D array of type np.uint8 containing a grayscale image.
+        mask:
+        keypoints (list): list of cv2.KeyPoint objects.
+    Returns:
+        descriptors (ndarray): 2D array of type np.float32 and shape (#keypoints x 128)
+            containing local descriptors for the keypoints.
+    """
+
+    grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    grayscale_image = cv2.resize(grayscale_image, (256, 256), interpolation=cv2.INTER_AREA)
+
+    if mask is not None:
+        mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_AREA)
+        mask = (mask==0).astype(np.uint8)*255
+
+    orb = cv2.BRISK_create(thresh=options.brisk_th, patternScale=options.brisk_ps)
+    keypoints = orb.detect(grayscale_image, mask=mask)
+    return keypoints
 
 def akaze_detect(image, mask, options):
     """
@@ -137,12 +157,14 @@ def kaze_detect(image, mask, options):
 
 # Selection utils
 ORB = "ORB"
-AKA = "akaze"
-OPTIONS = [ORB, AKA]
+AKA = "AKAZE"
+BRISK = "BRISK"
+OPTIONS = [ORB, AKA, BRISK]
 
 METHOD_MAPPING = {
     OPTIONS[0]: orb_detect,
-    OPTIONS[1]: akaze_detect
+    OPTIONS[1]: akaze_detect,
+    OPTIONS[2]: brisk_detect
 }
 
 def get_method(method):

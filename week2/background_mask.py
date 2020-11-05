@@ -117,7 +117,7 @@ def mask_segmentation_cc(img, mask):
             bboxes.append(get_bbox(sbc))
             resulting_masks = np.logical_or(resulting_masks==255, sbc==255).astype(np.uint8)*255
             splitted_resulting_masks.append(sbc)
-
+                
     return resulting_masks, bboxes, splitted_resulting_masks
 
 def create_convex_painting(mask, component_mask):

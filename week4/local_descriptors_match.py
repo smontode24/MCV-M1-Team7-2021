@@ -6,6 +6,7 @@ from debug_utils import *
 import matplotlib.pyplot as plt
 from skimage.feature import (match_descriptors, corner_harris,
                              corner_peaks, ORB, plot_matches)
+from tqdm import tqdm
 
 def add_md_args(parser):
     parser.add_argument("--bf_metric", default="hamming", type=str, help="matching measure in brute force method")
@@ -15,6 +16,9 @@ def add_md_args(parser):
 def match_descriptors_qs_db(qs_imgs, db_imgs, qs_descriptors, db_descriptors, qs_kps, db_kps, method_name, options):
     method = get_method(method_name)
     result = [[method(db_img, qs_img, qs_descriptor, db_descriptor, qs_kp, db_kp, options) for db_descriptor, db_img, db_kp in zip(db_descriptors, db_imgs, db_kps)] for qs_descriptor, qs_img, qs_kp in zip(qs_descriptors, qs_imgs, qs_kps)]
+    #for qs_descriptor, qs_img, qs_kp in tqdm(zip(qs_descriptors, qs_imgs, qs_kps)):
+    #result.append([[method(db_img, qs_img, qs_descriptor, db_descriptor, qs_kp, db_kp, options) for db_descriptor, db_img, db_kp in zip(db_descriptors, db_imgs, db_kps)] for qs_descriptor, qs_img, qs_kp in zip(qs_descriptors, qs_imgs, qs_kps)]) #[method(db_img, qs_img, qs_descriptor, db_descriptor, qs_kp, db_kp, options) for db_descriptor, db_img, db_kp in zip(db_descriptors, db_imgs, db_kps)])
+    #result = [ ]
     result = np.array(result)
     return result
 
@@ -25,7 +29,7 @@ def automatic_brute_force_match(db_img, qs_img, descriptors1, descriptors2, qs_k
     
     metric = options.bf_metric 
     max_ratio = options.bf_max_ratio
-    matches = match_descriptors(descriptors1, descriptors2, metric=metric, max_ratio=max_ratio)
+    matches = match_descriptors(descriptors1, descriptors2, metric=metric, max_ratio=max_ratio, max_distance=0.8)
     # TODO: Add visualization tool if debug is enabled for point correspondance
     
     if isDebug() and len(matches) > 10:

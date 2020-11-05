@@ -218,7 +218,7 @@ def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes
         num_paintings = len(qs_gts_matching[i][0])
         if num_paintings > 1 and len(pred_bboxes[i]) > 1:
             # First sort real
-            b1_c = box1_closer(qs_gts_bboxes[i][0], qs_gts_bboxes[i][1])
+            b1_c = box1_closer(pred_bboxes[i][0], pred_bboxes[i][1])
             if not b1_c:
                 new_qs_gts_matching.append([qs_gts_matching[i][0][1], qs_gts_matching[i][0][0]])
                 new_qs_gts_bboxes.append([qs_gts_bboxes[i][1], qs_gts_bboxes[i][0]])
