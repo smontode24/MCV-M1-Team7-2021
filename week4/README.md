@@ -29,7 +29,7 @@ which includes instructions to install it in most common used systems.
 `python match\_paintings\_local\_desc.py /home/sergio/MCV/M1/DB BBDD qsd4_w1 --masking 1 -kd ORB -ld ORB -km BF`
 
 ## Instructions (no keypoint-based)
-`python match\_paintings.py <path_to_db> (e.g., /home/sergio/MCV/M1/DB) <db_folder_name> (e.g., BBDD) <query_set_folder_name> (e.g., qsd1_w1) --masking <0 don't / 1 apply mask> -rmm <list of retrieval methods (1 or more)> -mm <name of the masking method> -tm <name of the text detection method> --matching_measures <measures to use to compare the descriptor of each method (1 or more)> --output_pkl <path to save pkl file with query assignments> --output_mask <folder to save mask images> --opkl_text <path to save pkl file with text bounding boxes>`
+`python match\_paintings.py <path_to_db> (e.g., /home/sergio/MCV/M1/DB) <db_folder_name> (e.g., BBDD) <query_set_folder_name> (e.g., qsd1_w1) --masking <0 don't / 1 apply mask> -rmm <list of retrieval methods (1 or more)> -mm <name of the masking method> -tm <name of the text detection method> --matching_measures <measures to use to compare the descriptor of each method (1 or more)> --output_pkl <path to save pkl file with query assignments> --output_mask <folder to save mask images> --opkl_text <path to save pkl file with text bounding boxes> -thr_matches <minimum number of matches in a painting>`
 
 # Execution example with 1 descriptor (text)
 `python match\_paintings.py /home/sergio/MCV/M1/DB BBDD qsd1_w3 --masking 0 -rmm text --matching_measures levenshtein -tm MM2 --filter_type median -w 1`

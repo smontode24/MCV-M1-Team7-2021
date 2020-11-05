@@ -3,6 +3,9 @@ from skimage.feature import match_descriptors
 import numpy as np
 import cv2
 from debug_utils import *
+import matplotlib.pyplot as plt
+from skimage.feature import (match_descriptors, corner_harris,
+                             corner_peaks, ORB, plot_matches)
 
 def add_md_args(parser):
     parser.add_argument("--bf_metric", default="hamming", type=str, help="matching measure in brute force method")
@@ -25,8 +28,8 @@ def automatic_brute_force_match(db_img, qs_img, descriptors1, descriptors2, qs_k
     matches = match_descriptors(descriptors1, descriptors2, metric=metric, max_ratio=max_ratio)
     # TODO: Add visualization tool if debug is enabled for point correspondance
     
-    #if isDebug() and len(matches) > 10:
-    #    show_matches(db_img, qs_img, db_kp, qs_kp, matches)
+    if isDebug() and len(matches) > 10:
+        show_matches(qs_img, db_img, qs_kp, db_kp, matches)
 
     return len(matches)
 
@@ -50,7 +53,16 @@ def auto_bf_matcher_cv(db_img, qs_img, descriptors1, descriptors2, qs_kp, db_kp,
 
 def show_matches(img1, img2, kp1, kp2, matches):
     # Need to draw only good matches, so create a mask
-    matchesMask = [[0,0] for i in range(len(matches))]
+    kp1 = np.array([[int(kp.pt[0]), int(kp.pt[1])] for kp in kp1])
+    kp2 = np.array([[int(kp.pt[0]), int(kp.pt[1])] for kp in kp2])
+
+    fig, ax = plt.subplots(nrows=2, ncols=1)
+    plot_matches(ax[0], cv2.resize(img1, (256,256)), cv2.resize(img2, (256,256)), kp1, kp2, matches)
+    ax[0].axis('off')
+    ax[0].set_title("Matches")
+    plt.show()
+
+    """ matchesMask = [[0,0] for i in range(len(matches))]
     # ratio test as per Lowe's paper
     for i,m in enumerate(matches):
         if len(matches[i]) != 0:
@@ -63,7 +75,7 @@ def show_matches(img1, img2, kp1, kp2, matches):
     
     img3 = cv2.drawMatchesKnn(cv2.resize(img1,(256,256)),kp1,cv2.resize(img2,(256,256)),kp2,matches,None,**draw_params)
     cv2.imshow("matches", img3)
-    cv2.waitKey(0)
+    cv2.waitKey(0) """
 
 """ 
 When using brote force matcher. From OpenCV documentation:
