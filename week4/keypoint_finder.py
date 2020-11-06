@@ -89,7 +89,6 @@ def akaze_detect(image, mask, options):
         descriptors (ndarray): 2D array of type np.float32 and shape (#keypoints x 128)
             containing local descriptors for the keypoints.
     """
-    print("keypoint_finder.py ==> akaze_detect")
     grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     grayscale_image = cv2.resize(grayscale_image, (256, 256), interpolation=cv2.INTER_AREA)
 
