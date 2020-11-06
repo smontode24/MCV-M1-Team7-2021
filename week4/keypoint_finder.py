@@ -14,6 +14,13 @@ def add_kp_args(parser):
     parser.add_argument("--ak_oct_layer", default=4, help="AKAZE: Number of Octaves layers")
     parser.add_argument("--ak_diffusivt", default=3, help="AKAZE: Diffusivity. See Ref 0 & ENUM")
 
+    parser.add_argument("--sift_features", default=0, type=int, help="SIFT: The number of best features to retain")
+    parser.add_argument("--sift_octlayer", default=3, help="SIFT: Number of Octaves layers")
+    parser.add_argument("--sift_thresh", default=0.04, type=float, help=" SIFT: threshold applied to constructor")
+    parser.add_argument("--sift_edgethresh", default=10, type=float, help="SIFT: threshold to filter out edge-like "
+                                                                          "features")
+    parser.add_argument("--sift_sigma", default=1.6, type=float, help="SIFT: reduce the value in case the photos are "
+                                                                      "not good quality")
 
     return parser
 
@@ -155,16 +162,47 @@ def kaze_detect(image, mask, options):
     return keypoints
 '''
 
+def sift_detect(image, mask, options):
+    """
+     Extract keypoints and descriptors with Scale Invariant Features Transform
+     Args:
+        image (ndarray): (H x W) 2D array of type np.uint8 containing a grayscale image.
+        mask: mask to be applied to the image [1 = yes, 0 = no]
+        options: Optional arguments to adjust the sift option
+     Returns:
+        descriptors (ndarray): 2D array of type np.float32 and shape (#keypoints x 128)
+        containing local descriptors for the keypoints."""
+
+    grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    grayscale_image = cv2.resize(grayscale_image, (256, 256), interpolation=cv2.INTER_AREA)
+
+    if mask is not None:
+        mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_AREA)
+        mask = (mask == 0).astype(np.uint8) * 255
+
+    sift = cv2.SIFT_create(nfeatures=options.sitf_features,
+                           nOctaveLayers=options.sift_octlayer,
+                           contrastThreshold=options.sift_thresh,
+                           edgeThreshold=options.sift_edgethresh,
+                           sigma=options.sift_sigma)
+    keypoints, descriptors = sift.detectAndCompute(grayscale_image, mask)
+
+    #drawed_image = cv2.drawKeypoints(z, keypoints, z, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+    return keypoints
+
 # Selection utils
 ORB = "ORB"
 AKA = "AKAZE"
 BRISK = "BRISK"
-OPTIONS = [ORB, AKA, BRISK]
+SIFT = "SIFT"
+OPTIONS = [ORB, AKA, BRISK, SIFT]
 
 METHOD_MAPPING = {
     OPTIONS[0]: orb_detect,
     OPTIONS[1]: akaze_detect,
-    OPTIONS[2]: brisk_detect
+    OPTIONS[2]: brisk_detect,
+    OPTIONS[3]: sift_detect,
 }
 
 def get_method(method):
