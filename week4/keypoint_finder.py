@@ -7,7 +7,7 @@ def add_kp_args(parser):
 
     # AKAZE Constructor options:
     parser.add_argument("--ak_desc_type", default=5, type=int, help="AKAZE: Descriptor Type. See Ref 0 & ENUM")
-    parser.add_argument("--ak_desc_size", default=3, type=int, help="AKAZE: Descriptor size")
+    parser.add_argument("--ak_desc_size", default=0, type=int, help="AKAZE: Descriptor size")
     parser.add_argument("--ak_desc_chan", default=3, type=int, help="AKAZE: Descriptor channels")
     parser.add_argument("--ak_threshold", default=0.001, type=float, help=" AKAZE: threshold applied to constructor")
     parser.add_argument("--ak_num_octav", default=4, help="AKAZE: Number of Octaves")
