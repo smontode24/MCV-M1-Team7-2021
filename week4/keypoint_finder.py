@@ -8,6 +8,7 @@ def add_kp_args(parser):
     # AKAZE Constructor options:
     parser.add_argument("--ak_desc_type", default=5, type=int, help="AKAZE: Descriptor Type. See Ref 0 & ENUM")
     parser.add_argument("--ak_desc_size", default=0, type=int, help="AKAZE: Descriptor size")
+    # Valid values: 1, 2 (intensity+gradient magnitude), 3(intensity + X and Y gradients)
     parser.add_argument("--ak_desc_chan", default=3, type=int, help="AKAZE: Descriptor channels")
     parser.add_argument("--ak_threshold", default=0.001, type=float, help=" AKAZE: threshold applied to constructor")
     parser.add_argument("--ak_num_octav", default=4, help="AKAZE: Number of Octaves")
@@ -106,13 +107,21 @@ def akaze_detect(image, mask, options):
     #    - nOctaveLayers            Default number of sublevels per scale level
     #    - diffusivity              Diffusivity type. DIFF_PM_G1, DIFF_PM_G2, DIFF_WEICKERT or DIFF_CHARBONNIER
 
-    akaze = cv2.AKAZE_create(descriptor_size=options.ak_desc_size,
-                             descriptor_type=options.ak_desc_type,
-                             threshold=options.ak_threshold,
-                             descriptor_channels=options.ak_desc_chan,
-                             nOctaves=options.ak_num_octav,
-                             nOctaveLayers=options.ak_oct_layer,
-                             diffusivity=options.ak_diffusivt)
+    # reuse of previous parameters. If not, is complaining because of type
+    descriptor_size = int(options.ak_desc_size)
+    descriptor_type = int(options.ak_desc_type)
+    threshold = float(options.ak_threshold)
+    channels = int(options.ak_desc_chan)
+    num_octaves = int(options.ak_num_octav)
+    octave_layers = int(options.ak_oct_layer)
+    difussivity = int(options.ak_diffusivt)
+    akaze = cv2.AKAZE_create(descriptor_size=descriptor_size,
+                             descriptor_type=descriptor_type,
+                             threshold=threshold,
+                             descriptor_channels=channels,
+                             nOctaves=num_octaves,
+                             nOctaveLayers=octave_layers,
+                             diffusivity=difussivity)
     keypoints = akaze.detect(grayscale_image, mask=mask)
     return keypoints
 
