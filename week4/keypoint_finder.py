@@ -12,7 +12,7 @@ def add_kp_args(parser):
     parser.add_argument("--ak_threshold", default=0.001, type=float, help=" AKAZE: threshold applied to constructor")
     parser.add_argument("--ak_num_octav", default=4, help="AKAZE: Number of Octaves")
     parser.add_argument("--ak_oct_layer", default=4, help="AKAZE: Number of Octaves layers")
-    parser.add_argument("--ak_diffusivt", default=3, help="AKAZE: Diffusivity. See Ref 0 & ENUM")
+    parser.add_argument("--ak_diffusivt", default=1, help="AKAZE: Diffusivity. See Ref 0 & ENUM")
 
 
     return parser
