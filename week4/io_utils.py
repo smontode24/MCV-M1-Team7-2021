@@ -100,3 +100,18 @@ def save_masks(results, result_folder):
 
         name = str(img_num).zfill(5)+".png"
         cv2.imwrite(os.path.join(result_folder, name), mask)
+
+def save_text(results, result_folder):
+    """ Save resulting masks (results) into the the output folder indicated by result_path """
+    for img_num, result in enumerate(results):
+        name = str(img_num).zfill(5)+".txt"
+        fd = open(os.path.join(result_folder, name), "w")
+        res2 = []
+        for res in result:
+            if res != "" and res != " ":
+                res2.append(res)
+            else:
+                res2.append("Unknown")
+
+        fd.writelines(["\n".join(res2)])
+        #cv2.imwrite(os.path.join(result_folder, name), mask)

@@ -36,6 +36,7 @@ def extract_text_from_imgs(imgs_list, text_bboxes):
 
 def img_w_mask_to_string(img, bbox):
     img = img[bbox[1]:bbox[3], bbox[0]:bbox[2]]
+    #img = cv2.medianBlur(img, 3)
     if img.shape[0] != 0:
         result = pytesseract.image_to_string(img)
     else:

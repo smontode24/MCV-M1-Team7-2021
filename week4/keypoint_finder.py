@@ -193,7 +193,7 @@ def sift_detect(image, mask, options):
                            contrastThreshold=options.sift_thresh,
                            edgeThreshold=options.sift_edgethresh,
                            sigma=options.sift_sigma)
-    keypoints, descriptors = sift.detectAndCompute(grayscale_image, mask)
+    keypoints = sift.detect(grayscale_image, mask)
 
     #drawed_image = cv2.drawKeypoints(z, keypoints, z, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 

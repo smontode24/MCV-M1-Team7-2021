@@ -110,17 +110,48 @@ def akaze_descriptor(image, kp, mask, options):
     keypoints = akaze.compute(grayscale_image, kp)[1]
     return keypoints
 
+def sift_descriptor(image, kp, mask, options):
+    """
+     Extract keypoints and descriptors with Scale Invariant Features Transform
+     Args:
+        image (ndarray): (H x W) 2D array of type np.uint8 containing a grayscale image.
+        mask: mask to be applied to the image [1 = yes, 0 = no]
+        options: Optional arguments to adjust the sift option
+     Returns:
+        descriptors (ndarray): 2D array of type np.float32 and shape (#keypoints x 128)
+        containing local descriptors for the keypoints."""
+
+    grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    grayscale_image = cv2.resize(grayscale_image, (256, 256), interpolation=cv2.INTER_AREA)
+
+    if mask is not None:
+        mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_AREA)
+        mask = (mask == 0).astype(np.uint8) * 255
+
+    sift = cv2.SIFT_create(nfeatures=options.sitf_features,
+                           nOctaveLayers=options.sift_octlayer,
+                           contrastThreshold=options.sift_thresh,
+                           edgeThreshold=options.sift_edgethresh,
+                           sigma=options.sift_sigma)
+    descriptors = sift.compute(grayscale_image, kp)[1]
+
+    #drawed_image = cv2.drawKeypoints(z, keypoints, z, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+    return descriptors
+
 
 # Selection utils
 ORB = "ORB"
 AKAZE = "AKAZE"
 BRISK = "BRISK"
-OPTIONS = [ORB, AKAZE, BRISK]
+SIFT = "SIFT"
+OPTIONS = [ORB, AKAZE, BRISK, SIFT]
 
 METHOD_MAPPING = {
     OPTIONS[0]: orb_descriptor,
     OPTIONS[1]: akaze_descriptor,
-    OPTIONS[2]: brisk_descriptor
+    OPTIONS[2]: brisk_descriptor,
+    OPTIONS[3]: sift_descriptor
 }
 
 def get_method(method):

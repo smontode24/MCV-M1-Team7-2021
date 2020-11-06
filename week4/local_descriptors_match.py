@@ -32,8 +32,8 @@ def automatic_brute_force_match(db_img, qs_img, descriptors1, descriptors2, qs_k
     matches = match_descriptors(descriptors1, descriptors2, metric=metric, max_ratio=max_ratio, max_distance=0.8)
     # TODO: Add visualization tool if debug is enabled for point correspondance
     
-    if isDebug() and len(matches) > 10:
-        show_matches(qs_img, db_img, qs_kp, db_kp, matches)
+    #if isDebug() and len(matches) > 10:
+    #    show_matches(qs_img, db_img, qs_kp, db_kp, matches)
 
     return len(matches)
 

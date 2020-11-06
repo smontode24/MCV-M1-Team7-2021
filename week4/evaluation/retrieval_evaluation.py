@@ -75,6 +75,7 @@ def show_f1_scores(top_k_matches, num_matches, gts, max_matches = 100):
         nms.append(nm)
 
     plt.plot(nms, f1s)
+    print("best threshold:", np.argmax(f1s))
     plt.ylim((0,1))
     plt.show()
 

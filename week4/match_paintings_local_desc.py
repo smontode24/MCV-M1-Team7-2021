@@ -39,6 +39,8 @@ def parse_input_args():
                         help="output file to write pkl file with text detections")
     parser.add_argument("--output_mask", type=str,
                         help="output folder to save predicted masks")
+    parser.add_argument("--output_text", type=str,
+                        help="output folder to save predicted text")
 
     ##### Preprocessing options
     parser.add_argument("--masking", default=1, type=int,
@@ -138,18 +140,15 @@ def match_paintings(args):
         if args.use_boxes_annotations == 0:
             # Compute for each painting its text segmentation
             bboxes_file = path.join(args.ds_path, args.qs_path, "bboxes_pred.pkl")
-            if not os.path.isfile(bboxes_file):
-                text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
-                to_pkl([text_masks, text_regions, relative_boxes], bboxes_file)
-            else:
-                text_masks, text_regions, relative_boxes = load_plain_pkl(bboxes_file)
-                print("Loading previous textboxes!")
-            #text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
+            #if not os.path.isfile(bboxes_file):
+            #    text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
+            #    to_pkl([text_masks, text_regions, relative_boxes], bboxes_file)
+            #else:
+            #    text_masks, text_regions, relative_boxes = load_plain_pkl(bboxes_file)
+            #    print("Loading previous textboxes!")
+            text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
         else:
             text_masks, text_regions, relative_boxes = process_gt_text_mask(qs_text_bboxes, mask_bboxes, cropped_qs_imgs)
-
-        # Text extractor
-        painting_text = extract_text_from_imgs(cropped_qs_imgs, relative_boxes)
 
     # Perform painting matching
     t0 = time()
@@ -171,6 +170,9 @@ def match_paintings(args):
     else:
         # Remove only text
         qs_imgs_refined = removal_text(qs_imgs, text_regions)
+
+    # Text extractor
+    painting_text = extract_text_from_imgs(cropped_qs_imgs, relative_boxes)
 
     # Generate query set assignments
     num_matches = painting_matchings_local_desc(qs_imgs_refined, db_imgs, text_masks, args)
@@ -228,6 +230,9 @@ def match_paintings(args):
     # Save mask images if necessary
     if args.output_mask:
         save_masks(masked_regions, args.output_mask)
+
+    if args.output_text:
+        save_text(painting_text, args.output_text)
 
 if __name__ == "__main__":
     parsed_args = parse_input_args()
