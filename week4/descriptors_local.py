@@ -92,13 +92,21 @@ def akaze_descriptor(image, kp, mask, options):
     #    - nOctaveLayers            Default number of sublevels per scale level
     #    - diffusivity              Diffusivity type. DIFF_PM_G1, DIFF_PM_G2, DIFF_WEICKERT or DIFF_CHARBONNIER
 
-    akaze = cv2.AKAZE_create(descriptor_size=options.ak_desc_size,
-                             descriptor_type=options.ak_desc_type,
-                             threshold=options.ak_threshold,
-                             descriptor_channels=options.ak_desc_chan,
-                             nOctaves=options.ak_num_octav,
-                             nOctaveLayers=options.ak_oct_layer,
-                             diffusivity=options.ak_diffusivt)
+    # reuse of previous parameters. If not, is complaining
+    descriptor_size = int(options.ak_desc_size)
+    descriptor_type = int(options.ak_desc_type)
+    threshold = float(options.ak_threshold)
+    channels = int(options.ak_desc_chan)
+    num_octaves = int(options.ak_num_octav)
+    octave_layers = int(options.ak_oct_layer)
+    difussivity = int(options.ak_diffusivt)
+    akaze = cv2.AKAZE_create(descriptor_size=descriptor_size,
+                             descriptor_type=descriptor_type,
+                             threshold=threshold,
+                             descriptor_channels=channels,
+                             nOctaves=num_octaves,
+                             nOctaveLayers=octave_layers,
+                             diffusivity=difussivity)
     keypoints = akaze.compute(grayscale_image, kp)[1]
     return keypoints
 
