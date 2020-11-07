@@ -16,7 +16,7 @@ def add_kp_args(parser):
     parser.add_argument("--ak_diffusivt", default=1, help="AKAZE: Diffusivity. See Ref 0 & ENUM")
 
     parser.add_argument("--sift_features", default=0, type=int, help="SIFT: The number of best features to retain")
-    parser.add_argument("--sift_octlayer", default=3, help="SIFT: Number of Octaves layers")
+    parser.add_argument("--sift_octlayer", default=3, type=int, help="SIFT: Number of Octaves layers")
     parser.add_argument("--sift_thresh", default=0.04, type=float, help=" SIFT: threshold applied to constructor")
     parser.add_argument("--sift_edgethresh", default=10, type=float, help="SIFT: threshold to filter out edge-like "
                                                                           "features")
