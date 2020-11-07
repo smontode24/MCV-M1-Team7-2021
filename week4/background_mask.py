@@ -75,13 +75,11 @@ def edge_segmentation(img):
     sx, sy = np.shape(img)[:2]
     datatype = np.uint8
 
-    kernel = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]).astype(datatype)
-
     kernel = np.ones((7,7), dtype=np.uint8)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    edges = cv2.Canny(img, 30, 30)
-
+    
+    edges = cv2.Canny(img, 25, 30)
+    
     # Closing to ensure edges are continuous
     edges = cv2.dilate(edges, kernel, iterations=1)
     edges = cv2.erode(edges, kernel, iterations=1)
@@ -91,7 +89,7 @@ def edge_segmentation(img):
     mask = (ndimage.binary_fill_holes(edges)).astype(np.float64)
     mask = cv2.erode(mask, kernel, iterations=1)
     mask = cv2.erode(mask, kernel, iterations=1)
-    
+
     #mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((1,int(mask.shape[1]*0.05))))
 
     nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(mask.astype(np.uint8), connectivity=8)
@@ -127,7 +125,7 @@ def edge_segmentation(img):
     bboxes = [get_bbox(bc)]
     resulting_masks = bc
     splitted_resulting_masks = [bc]
-
+    
     # Second painting if first one does not take most part + more or less a rectangular shape + no IoU
     if len(idxs) > 1:
         if not takes_most_part_image(bc) and regular_shape(sbc) and check_no_iou(bc, sbc):

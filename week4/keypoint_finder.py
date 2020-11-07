@@ -4,6 +4,7 @@ from debug_utils import *
 
 def add_kp_args(parser):
     parser.add_argument("--orb_fastthresh", default=15, type=int, help="matching measure in brute force method")
+    parser.add_argument("--orb_scaleFactor", default=1.2, type=float)
 
     # AKAZE Constructor options:
     parser.add_argument("--ak_desc_type", default=5, type=int, help="AKAZE: Descriptor Type. See Ref 0 & ENUM")
@@ -55,7 +56,7 @@ def orb_detect(image, mask, options):
         mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_AREA)
         mask = (mask==0).astype(np.uint8)*255
     
-    orb = cv2.ORB_create(fastThreshold=options.orb_fastthresh) # WTA_K=4, 
+    orb = cv2.ORB_create(fastThreshold=options.orb_fastthresh, scaleFactor=options.orb_scaleFactor) # WTA_K=4, 
     keypoints = orb.detect(grayscale_image, mask=mask)
     return keypoints
 

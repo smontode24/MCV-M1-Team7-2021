@@ -5,6 +5,7 @@ from debug_utils import *
 from tqdm import tqdm
 from collections import defaultdict
 from evaluation.mask_evaluation import bb_intersection_over_union, bb_int_a_over_b
+from imutils.object_detection import non_max_suppression
 
 def estimate_text_mask(cropped_imgs, painting_bboxes, method, qs_images):
     """ List of list of images. Each list contains one element for each detected painting in the image.
@@ -714,17 +715,163 @@ def search_rectangles(white,black,paint):
 
     return mask, [x,y,x+w,y+h]
 
+def bb_east(image):
+    min_confidence = 0.8
+
+    # load the input image and grab the image dimensions
+    orig = image.copy()
+    (H, W) = image.shape[:2]
+
+    # create an empty text mask
+    text_mask = np.zeros((H,W,1), np.uint8)
+
+    # set the new width and height and then determine the ratio in change
+    # for both the width and height
+    newW, newH = 320, 320
+    rW = W / float(newW)
+    rH = H / float(newH)
+
+    # resize the image and grab the new image dimensions
+    image = cv2.resize(image, (newW, newH))
+    (H, W) = image.shape[:2]                                                                                                                                                                                                                                                                                                        
+
+    layerNames = [
+        "feature_fusion/Conv_7/Sigmoid",
+        "feature_fusion/concat_3"]
+
+    net = cv2.dnn.readNet("week4/text/frozen_east_text_detection.pb")
+
+    blob = cv2.dnn.blobFromImage(image, 1.0, (W, H),
+        (123.68, 116.78, 103.94), swapRB=True, crop=False)
+    
+    net.setInput(blob)
+    (scores, geometry) = net.forward(layerNames)
+
+    (numRows, numCols) = scores.shape[2:4]
+    rects = []
+    confidences = []
+
+    # loop over the number of rows
+    for y in range(0, numRows):
+        scoresData = scores[0, 0, y]
+        xData0 = geometry[0, 0, y]
+        xData1 = geometry[0, 1, y]
+        xData2 = geometry[0, 2, y]
+        xData3 = geometry[0, 3, y]
+        anglesData = geometry[0, 4, y]
+
+        # loop over the number of columns
+        for x in range(0, numCols):
+            # if our score does not have sufficient probability, ignore it
+            if scoresData[x] < min_confidence:
+                continue
+
+            (offsetX, offsetY) = (x * 4.0, y * 4.0)
+
+            angle = anglesData[x]
+            cos = np.cos(angle)
+            sin = np.sin(angle)
+
+            # use the geometry volume to derive the width and height of
+            # the bounding box
+            h = xData0[x] + xData2[x]
+            w = xData1[x] + xData3[x]
+
+            # compute both the starting and ending (x, y)-coordinates for
+            # the text prediction bounding box
+            endX = int(offsetX + (cos * xData1[x]) + (sin * xData2[x]))
+            endY = int(offsetY - (sin * xData1[x]) + (cos * xData2[x]))
+            startX = int(endX - w)
+            startY = int(endY - h)
+
+            # add the bounding box coordinates and probability score to
+            # our respective lists
+            rects.append((startX, startY, endX, endY))
+            confidences.append(scoresData[x])
+
+        # apply non-maxima suppression to suppress weak, overlapping bounding
+        # boxes
+        bounding_boxes = non_max_suppression(np.array(rects), probs=confidences)
+
+    # merge closed bounding boxes
+    for idx1, box1 in enumerate(bounding_boxes):
+        for idx2, box2 in enumerate(bounding_boxes):
+            if (abs(box1[3] - box2[3]) < 10) and (abs(box1[0] - box2[2]) < 30 or abs(box1[2] - box2[0]) < 30):
+                bounding_boxes[idx1] = [min(box1[0], box2[0]), min(box1[1], box2[1]), max(box1[2], box2[2]), max(box1[3], box2[3])]
+                bounding_boxes[idx2] = [min(box1[0], box2[0]), min(box1[1], box2[1]), max(box1[2], box2[2]), max(box1[3], box2[3])]
+
+    # loop over the bounding boxes
+    for (startX, startY, endX, endY) in bounding_boxes:
+        # scale the bounding box coordinates based on the respective
+        # ratios
+        startX = int(startX * rW)
+        startY = int(startY * rH)
+        endX = int(endX * rW)
+        endY = int(endY * rH)
+
+        # if ((endX - startX) / (endY - startY) > 2) & ((endX - startX) / (endY - startY)  < 12) & ((endX - startX) > (0.1 * W)):
+    
+        # draw the bounding box on the image
+        cv2.rectangle(orig, (startX, startY), (endX, endY), (0, 255, 0), 2)
+        # box = [startX, startY, endX, endY]
+        # bounding_boxes.append(box)
+        text_mask[startY - 5 : endY + 5, startX - 5  : endX + 5] = 255
+    
+    # Finding contours of the white areas of the images (high possibility of text)
+    contours, _ = cv2.findContours(text_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
+
+    # Initialize parameters
+    largest_area, second_largest_area, x_box_1, y_box_1, w_box_1, h_box_1, x_box_2, y_box_2, w_box_2, h_box_2 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    image_width = text_mask.shape[0]
+    image_area = text_mask.shape[0] * text_mask.shape[1]
+
+    # From all the contours found, pick only the ones with rectangular shape and large area
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        area = cv2.contourArea(cnt)
+
+        if (w / h > 2.5) & (w / h < 15) & (w > (0.1 * image_width)) & (area > second_largest_area) & (area < 0.1 * image_area):
+
+            if area > largest_area:
+                x_box_2, y_box_2, w_box_2, h_box_2 = x_box_1, y_box_1, w_box_1, h_box_1
+                x_box_1, y_box_1, w_box_1, h_box_1 = x, y, w, h
+                second_largest_area = largest_area
+                largest_area = area
+
+            else:
+                x_box_2, y_box_2, w_box_2, h_box_2 = x, y, w, h
+                second_largest_area = area
+
+    # cv2.rectangle(image, (x_box_1, y_box_1), (x_box_1 + w_box_1 - 1, y_box_1 + h_box_1 - 1), 255, 2)
+    # cv2.rectangle(image, (x_box_2, y_box_2), (x_box_2 + w_box_2 - 1, y_box_2 + h_box_2 - 1), 255, 2)
+
+    # Append the corners of the bounding boxes to the boxes list
+    text_mask[:,:] = 0
+    if w_box_1 == 0 and h_box_1 == 0:
+        return text_mask, [0,0,10,10] 
+
+    box = [x_box_1, y_box_1, x_box_1 + w_box_1, y_box_1 + h_box_1]
+    text_mask[y_box_1 : (y_box_1 + h_box_1), x_box_1 : (x_box_1 + w_box_1)] = 255
+
+    """ M_W = 0.05
+    M_H = 0.05
+    sp_w, sp_h = int((box[2]-box[0])*M_W), int((box[3]-box[1])*M_H)
+    x0,y0,x1,y1 = max(0, box[0] - sp_w), max(0, box[1] - sp_h), min(box[2] + sp_w, text_mask.shape[1]), min(box[3]+sp_h, text_mask.shape[0]) """
+    return text_mask, box
+    
+
 # Selection utils
 MM = "MM"
 MM2 = "MM2"
 MM3 = "MM3"
-OPTIONS = [MM, MM2, MM3, "MM4"]
+OPTIONS = [MM, MM2, MM3, "MM4", "EAST"]
 
 METHOD_MAPPING = {
     OPTIONS[0]: morphological_method1,
     OPTIONS[1]: best_segmentation,
     OPTIONS[2]: td6,
-    OPTIONS[3]: text_detect_method1
+    OPTIONS[3]: text_detect_method1,
+    OPTIONS[4]: bb_east
 }
 
 def get_method(method):
