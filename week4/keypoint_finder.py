@@ -188,7 +188,7 @@ def sift_detect(image, mask, options):
         mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_AREA)
         mask = (mask == 0).astype(np.uint8) * 255
 
-    sift = cv2.SIFT_create(nfeatures=options.sitf_features,
+    sift = cv2.SIFT_create(nfeatures=options.sift_features,
                            nOctaveLayers=options.sift_octlayer,
                            contrastThreshold=options.sift_thresh,
                            edgeThreshold=options.sift_edgethresh,
