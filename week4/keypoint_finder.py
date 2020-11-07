@@ -17,7 +17,7 @@ def add_kp_args(parser):
     parser.add_argument("--ak_diffusivt", default=1, help="AKAZE: Diffusivity. See Ref 0 & ENUM")
 
     parser.add_argument("--sift_features", default=0, type=int, help="SIFT: The number of best features to retain")
-    parser.add_argument("--sift_octlayer", default=3, help="SIFT: Number of Octaves layers")
+    parser.add_argument("--sift_octlayer", default=3, type=int, help="SIFT: Number of Octaves layers")
     parser.add_argument("--sift_thresh", default=0.04, type=float, help=" SIFT: threshold applied to constructor")
     parser.add_argument("--sift_edgethresh", default=10, type=float, help="SIFT: threshold to filter out edge-like "
                                                                           "features")
@@ -189,7 +189,7 @@ def sift_detect(image, mask, options):
         mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_AREA)
         mask = (mask == 0).astype(np.uint8) * 255
 
-    sift = cv2.SIFT_create(nfeatures=options.sitf_features,
+    sift = cv2.SIFT_create(nfeatures=options.sift_features,
                            nOctaveLayers=options.sift_octlayer,
                            contrastThreshold=options.sift_thresh,
                            edgeThreshold=options.sift_edgethresh,
