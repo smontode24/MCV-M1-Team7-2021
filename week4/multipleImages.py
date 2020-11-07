@@ -81,10 +81,17 @@ def segmented_intersections(lines):
 def do_pipeline(path, mser):
     I = openImage(path)
     regions, _ = mser.detectRegions(I)
+    i = 0
     for p in regions:
         xmax, ymax = np.amax(p, axis=0)
         xmin, ymin = np.amin(p, axis=0)
-        cv2.rectangle(I, (xmin, ymax), (xmax, ymin), (0, 255, 0), 1)
+        # Check size between points
+        # just print those bigs!!
+        if (xmax-xmin) > 100:
+            if 30 < (ymax-ymin) < 50:
+                i = i + 1
+                print ("   it has rectangle: "+str(i))
+                cv2.rectangle(I, (xmin, ymax), (xmax, ymin), (0, 255, 0), 1)
     return I
 
 
@@ -117,6 +124,6 @@ if __name__ == "__main__":
         i=i+1
         result = do_pipeline(img, mser)
         path3 = path2+str(i)+".png"
-
+        print(path3)
         cv2.imwrite(path2+str(i)+".png", result)
     print("hey, stop!")
