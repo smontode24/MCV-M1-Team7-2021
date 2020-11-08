@@ -99,13 +99,14 @@ def do_pipeline_RGB(path, mser):
             xmin, ymin = np.amin(p, axis=0)
             # Check size between points
             # just print those bigs!!
-            if 10 < (xmax-xmin) < 0.3*width:
-                if 10 < (ymax-ymin) < 0.1*height:
+            if 5 < (xmax-xmin) < 0.3*width:
+                if 3 < (ymax-ymin) < 0.2*height:
                     #print ("   it has rectangle: "+str(i))
                     big_areas.append(p)
         except:
             print("   "+str(i)+"   produced oops")
-    percentage = 0.03       #Consider a deviation of 3% of the total height
+    percentage = 0.01       #Consider a deviation of 1% of the total height
+    y_base_desviation = percentage*height
     desviation_y = height*percentage
     # processing horitzontal msers in bbxes that have a "big area" [enough from previous filters]
     horitzontal_blocks = []
@@ -121,12 +122,18 @@ def do_pipeline_RGB(path, mser):
         for index2, q in enumerate(big_areas):
             xmax_cand, ymax_cand = np.amax(q, axis=0)
             xmin_cand, ymin_cand = np.amin(q, axis=0)
-            if  (ymin_orig*(1-percentage) < ymin_cand < ymin_orig*(1+percentage)) and \
-                (ymax_orig*(1-percentage) < ymax_cand < ymax_orig*(1+percentage)):
-                    horitzontal_blocks.append(q)
-                    cv2.rectangle(I, (xmin_cand, ymax_cand), (xmax_cand, ymin_cand), (0, 0, 255), 1)
-                    del big_areas[index2]
-                    i = i+1
+            # Checking, y_start point is not desviate > percentage
+            if  (ymin_orig-0.6*(ymax_orig-ymin_orig) < ymin_cand < ymin_orig+0.6*(ymax_orig-ymin_orig)) and \
+                (ymax_orig-y_base_desviation < ymax_cand < ymax_orig+y_base_desviation):
+                    # It has to have a neighbour, also next to it....
+                    # Represented by: starting point (xmin_cand) cannot be after more than 3 * space of the
+                    # previous letter size
+                    if  (xmax_orig < xmin_cand < xmax_orig+3*(xmax_orig-xmin_orig)):
+                        horitzontal_blocks.append(q)
+                        cv2.rectangle(I, (xmin_orig, ymax_orig), (xmax_orig, ymin_orig), (0, 255, 0), 3)
+                        cv2.rectangle(I, (xmin_cand, ymax_cand), (xmax_cand, ymin_cand), (0, 0, 255), 1)
+                        del big_areas[index2]
+                        i = i+1
 
     return I
 
