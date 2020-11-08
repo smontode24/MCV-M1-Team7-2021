@@ -16,6 +16,7 @@ from matplotlib import pyplot as plt
 import math
 from operator import itemgetter
 import glob
+import imutils
 
 # Own coded comparator, in order to order nested lists in Python
 def compareDistances (dMatch):
@@ -78,22 +79,140 @@ def segmented_intersections(lines):
 
     return intersections
 
-def do_pipeline(path, mser):
+def do_pipeline_RGB(path, mser):
     I = openImage(path)
-    regions, _ = mser.detectRegions(I)
+    gray = cv2.cvtColor(I,cv2.COLOR_BGR2GRAY)
+    height, width = gray.shape
+    I = imutils.resize(I, width=1024)
+    gray = imutils.resize(gray, width=1024)
+    #gray = cv2.resize(gray,(500,400),interpolation=cv2.INTER_LANCZOS4)
+    #ret, threshold = cv2.threshold(gray, 40, 255, cv2.THRESH_TOZERO)
+    msers, bboxes = mser.detectRegions(gray)
     i = 0
-    for p in regions:
-        xmax, ymax = np.amax(p, axis=0)
-        xmin, ymin = np.amin(p, axis=0)
-        # Check size between points
-        # just print those bigs!!
-        if (xmax-xmin) > 100:
-            if 30 < (ymax-ymin) < 50:
-                i = i + 1
-                print ("   it has rectangle: "+str(i))
-                cv2.rectangle(I, (xmin, ymax), (xmax, ymin), (0, 255, 0), 1)
+    # DETAIL
+    # Avoid very smalll boxes
+    # Avoid images with y-component > 20%
+    big_areas=[]
+    for p in msers:
+        try:
+            xmax, ymax = np.amax(p, axis=0)
+            xmin, ymin = np.amin(p, axis=0)
+            # Check size between points
+            # just print those bigs!!
+            if 10 < (xmax-xmin) < 0.3*width:
+                if 10 < (ymax-ymin) < 0.1*height:
+                    #print ("   it has rectangle: "+str(i))
+                    big_areas.append(p)
+        except:
+            print("   "+str(i)+"   produced oops")
+    percentage = 0.03       #Consider a deviation of 3% of the total height
+    desviation_y = height*percentage
+    # processing horitzontal msers in bbxes that have a "big area" [enough from previous filters]
+    horitzontal_blocks = []
+    for index1, j in enumerate(big_areas):
+        i = 0
+        xmax_orig, ymax_orig = np.amax(j, axis=0)
+        xmin_orig, ymin_orig = np.amin(j, axis=0)
+        xmax_final=0
+        xmin_final=0
+        ymax_final=0
+        ymin_final=0
+        del big_areas[index1]
+        for index2, q in enumerate(big_areas):
+            xmax_cand, ymax_cand = np.amax(q, axis=0)
+            xmin_cand, ymin_cand = np.amin(q, axis=0)
+            if  (ymin_orig*(1-percentage) < ymin_cand < ymin_orig*(1+percentage)) and \
+                (ymax_orig*(1-percentage) < ymax_cand < ymax_orig*(1+percentage)):
+                    horitzontal_blocks.append(q)
+                    cv2.rectangle(I, (xmin_cand, ymax_cand), (xmax_cand, ymin_cand), (0, 0, 255), 1)
+                    del big_areas[index2]
+                    i = i+1
+
     return I
 
+''' 
+COLORSPACE DIDN'T MAKE ANY IMPROVEMENTS
+def do_pipeline_LAB(path, mser):
+    I = openImage(path)
+    gray = cv2.cvtColor(I,cv2.COLOR_BGR2GRAY)
+    I = cv2.cvtColor(I, cv2.COLOR_BGR2LAB)
+    I = imutils.resize(I, width=128)
+    gray = imutils.resize(gray, width=128)
+    #gray = cv2.resize(gray,(500,400),interpolation=cv2.INTER_LANCZOS4)
+    ret, threshold = cv2.threshold(I, 170, 255, cv2.THRESH_TOZERO)
+    msers, bboxes = mser.detectRegions(threshold)
+    i = 0
+    # DETAIL
+    # In this experiment, the image is pre-binarized
+    for p in msers:
+        try:
+            xmax, ymax = np.amax(p, axis=0)
+            xmin, ymin = np.amin(p, axis=0)
+            # Check size between points
+            # just print those bigs!!
+            if (xmax-xmin) > 50:
+                if 5 < (ymax-ymin) < 100:
+                    print ("   it has rectangle: "+str(i))
+                    cv2.rectangle(I, (xmin, ymax), (xmax, ymin), (0, 0, 255), 3)
+                    i = i + 1
+        except:
+            print("   "+str(i)+"   produced oops")
+    return I
+
+def do_pipeline_HSV(path, mser):
+    I = openImage(path)
+    gray = cv2.cvtColor(I,cv2.COLOR_BGR2GRAY)
+    I = cv2.cvtColor(I,cv2.COLOR_BGR2HSV)
+    I = imutils.resize(I, width=512)
+    gray = imutils.resize(gray, width=512)
+    #gray = cv2.resize(gray,(500,400),interpolation=cv2.INTER_LANCZOS4)
+    ret, threshold = cv2.threshold(I, 40, 255, cv2.THRESH_TOZERO)
+    msers, bboxes = mser.detectRegions(threshold)
+    i = 0
+    # DETAIL
+    # In this experiment, the image is pre-binarized
+    for p in msers:
+        try:
+            xmax, ymax = np.amax(p, axis=0)
+            xmin, ymin = np.amin(p, axis=0)
+            # Check size between points
+            # just print those bigs!!
+            if (xmax-xmin) > 50:
+                if 5 < (ymax-ymin) < 100:
+                    print ("   it has rectangle: "+str(i))
+                    cv2.rectangle(I, (xmin, ymax), (xmax, ymin), (0, 0, 255), 3)
+                    i = i + 1
+        except:
+            print("   "+str(i)+"   produced oops")
+    return I
+
+def do_pipeline_YUV(path, mser):
+    I = openImage(path)
+    gray = cv2.cvtColor(I,cv2.COLOR_BGR2GRAY)
+    I = cv2.cvtColor(I,cv2.COLOR_BGR2YUV)
+    I = imutils.resize(I, width=512)
+    gray = imutils.resize(gray, width=512)
+    #gray = cv2.resize(gray,(500,400),interpolation=cv2.INTER_LANCZOS4)
+    ret, threshold = cv2.threshold(I, 170, 255, cv2.THRESH_TOZERO)
+    msers, bboxes = mser.detectRegions(threshold)
+    i = 0
+    # DETAIL
+    # In this experiment, the image is pre-binarized
+    for p in msers:
+        try:
+            xmax, ymax = np.amax(p, axis=0)
+            xmin, ymin = np.amin(p, axis=0)
+            # Check size between points
+            # just print those bigs!!
+            if (xmax-xmin) > 50:
+                if 5 < (ymax-ymin) < 100:
+                    print ("   it has rectangle: "+str(i))
+                    cv2.rectangle(I, (xmin, ymax), (xmax, ymin), (0, 0, 255), 3)
+                    i = i + 1
+        except:
+            print("   "+str(i)+"   produced oops")
+    return I
+'''
 
 # Reusing some calls from the MAIN code,
 # this program focused in one imag
@@ -122,7 +241,7 @@ if __name__ == "__main__":
 
     for img in images:
         i=i+1
-        result = do_pipeline(img, mser)
+        result = do_pipeline_RGB(img, mser)
         path3 = path2+str(i)+".png"
         print(path3)
         cv2.imwrite(path2+str(i)+".png", result)
