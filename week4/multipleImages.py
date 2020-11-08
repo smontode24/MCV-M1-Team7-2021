@@ -123,8 +123,9 @@ def do_pipeline_RGB(path, mser):
             xmax_cand, ymax_cand = np.amax(q, axis=0)
             xmin_cand, ymin_cand = np.amin(q, axis=0)
             # Checking, y_start point is not desviate > percentage
+            # Fine Tunning: Required to be also up & down... because i letters (and those that goes down like: q, j, g)
             if  (ymin_orig-0.6*(ymax_orig-ymin_orig) < ymin_cand < ymin_orig+0.6*(ymax_orig-ymin_orig)) and \
-                (ymax_orig-y_base_desviation < ymax_cand < ymax_orig+y_base_desviation):
+                (ymax_orig-0.6*(ymax_orig-ymin_orig) < ymax_cand < ymax_orig+0.6*(ymax_orig-ymin_orig)):
                     # It has to have a neighbour, also next to it....
                     # Represented by: starting point (xmin_cand) cannot be after more than 3 * space of the
                     # previous letter size
