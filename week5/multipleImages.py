@@ -79,6 +79,37 @@ def segmented_intersections(lines):
 
     return intersections
 
+def k_means(image_path):
+    # following the previous guide +++ :
+    # https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_ml/py_kmeans/py_kmeans_opencv/py_kmeans_opencv.html#kmeans-opencv
+    # DOCUMENTATION: https://docs.opencv.org/master/d5/d38/group__core__cluster.html
+
+    image = cv2.imread(image_path)
+    Z = image.reshape((-1,3))
+    # convert to np.float32
+    Z = np.float32(Z)
+
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    # TODO: El noi de pyImageSearch fa una barra de codis
+    # reshape the image to be a list of pixels
+    # oneDarray = image.reshape((image.shape[0] * image.shape[1], 3))
+    # clt = cv2.kmeans(K=options.clusters)
+    # clt.fit(image)
+    # End of TODO
+
+    ret, label, center = cv2.kmeans(Z, 8, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+
+    # Now convert back into uint8, and make original image
+    center = np.uint8(center)
+    res = center[label.flatten()]
+    res2 = res.reshape((image.shape))
+
+    #cv2.imshow('res2', res2)
+
+    return res2
+
+
+
 def do_pipeline_RGB(path, mser):
     I = openImage(path)
     gray = cv2.cvtColor(I,cv2.COLOR_BGR2GRAY)
@@ -138,89 +169,6 @@ def do_pipeline_RGB(path, mser):
 
     return I
 
-''' 
-COLORSPACE DIDN'T MAKE ANY IMPROVEMENTS
-def do_pipeline_LAB(path, mser):
-    I = openImage(path)
-    gray = cv2.cvtColor(I,cv2.COLOR_BGR2GRAY)
-    I = cv2.cvtColor(I, cv2.COLOR_BGR2LAB)
-    I = imutils.resize(I, width=128)
-    gray = imutils.resize(gray, width=128)
-    #gray = cv2.resize(gray,(500,400),interpolation=cv2.INTER_LANCZOS4)
-    ret, threshold = cv2.threshold(I, 170, 255, cv2.THRESH_TOZERO)
-    msers, bboxes = mser.detectRegions(threshold)
-    i = 0
-    # DETAIL
-    # In this experiment, the image is pre-binarized
-    for p in msers:
-        try:
-            xmax, ymax = np.amax(p, axis=0)
-            xmin, ymin = np.amin(p, axis=0)
-            # Check size between points
-            # just print those bigs!!
-            if (xmax-xmin) > 50:
-                if 5 < (ymax-ymin) < 100:
-                    print ("   it has rectangle: "+str(i))
-                    cv2.rectangle(I, (xmin, ymax), (xmax, ymin), (0, 0, 255), 3)
-                    i = i + 1
-        except:
-            print("   "+str(i)+"   produced oops")
-    return I
-
-def do_pipeline_HSV(path, mser):
-    I = openImage(path)
-    gray = cv2.cvtColor(I,cv2.COLOR_BGR2GRAY)
-    I = cv2.cvtColor(I,cv2.COLOR_BGR2HSV)
-    I = imutils.resize(I, width=512)
-    gray = imutils.resize(gray, width=512)
-    #gray = cv2.resize(gray,(500,400),interpolation=cv2.INTER_LANCZOS4)
-    ret, threshold = cv2.threshold(I, 40, 255, cv2.THRESH_TOZERO)
-    msers, bboxes = mser.detectRegions(threshold)
-    i = 0
-    # DETAIL
-    # In this experiment, the image is pre-binarized
-    for p in msers:
-        try:
-            xmax, ymax = np.amax(p, axis=0)
-            xmin, ymin = np.amin(p, axis=0)
-            # Check size between points
-            # just print those bigs!!
-            if (xmax-xmin) > 50:
-                if 5 < (ymax-ymin) < 100:
-                    print ("   it has rectangle: "+str(i))
-                    cv2.rectangle(I, (xmin, ymax), (xmax, ymin), (0, 0, 255), 3)
-                    i = i + 1
-        except:
-            print("   "+str(i)+"   produced oops")
-    return I
-
-def do_pipeline_YUV(path, mser):
-    I = openImage(path)
-    gray = cv2.cvtColor(I,cv2.COLOR_BGR2GRAY)
-    I = cv2.cvtColor(I,cv2.COLOR_BGR2YUV)
-    I = imutils.resize(I, width=512)
-    gray = imutils.resize(gray, width=512)
-    #gray = cv2.resize(gray,(500,400),interpolation=cv2.INTER_LANCZOS4)
-    ret, threshold = cv2.threshold(I, 170, 255, cv2.THRESH_TOZERO)
-    msers, bboxes = mser.detectRegions(threshold)
-    i = 0
-    # DETAIL
-    # In this experiment, the image is pre-binarized
-    for p in msers:
-        try:
-            xmax, ymax = np.amax(p, axis=0)
-            xmin, ymin = np.amin(p, axis=0)
-            # Check size between points
-            # just print those bigs!!
-            if (xmax-xmin) > 50:
-                if 5 < (ymax-ymin) < 100:
-                    print ("   it has rectangle: "+str(i))
-                    cv2.rectangle(I, (xmin, ymax), (xmax, ymin), (0, 0, 255), 3)
-                    i = i + 1
-        except:
-            print("   "+str(i)+"   produced oops")
-    return I
-'''
 
 # Reusing some calls from the MAIN code,
 # this program focused in one imag
@@ -230,9 +178,9 @@ if __name__ == "__main__":
     #path0 = absolutePath(path0)
 
     # Path to image in DB
-    path1 = "/home/sergio/MCV/M1/Practicas/DB/qsd1_w4/*.jpg"
+    path1 = "qsd1_w5/*.jpg"
     path1 = absolutePath(path1)
-    print("Image from the qds1_w4: ", path1)
+    print("Image from the qds1_w5: ", path1)
     #  # Path to image not in DB
     #  path2 = "qsd1_w4/00020.jpg"
     #  path2 = absolutePath(path2)
@@ -240,7 +188,6 @@ if __name__ == "__main__":
     #  path3 = absolutePath(path3)
 
     images = glob.glob(path1)
-    mser = cv2.MSER_create()
 
     i = 0
     path2 = "output_mask/"
@@ -248,7 +195,7 @@ if __name__ == "__main__":
 
     for img in images:
         i=i+1
-        result = do_pipeline_RGB(img, mser)
+        result = k_means(img)
         path3 = path2+str(i)+".png"
         print(path3)
         cv2.imwrite(path2+str(i)+".png", result)
