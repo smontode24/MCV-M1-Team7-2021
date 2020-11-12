@@ -117,10 +117,10 @@ def match_paintings(args):
         # Obtain masks for the paintings. -> Denoise on copy only because it affects text recognition a lot
         mask_file = path.join(args.ds_path, args.qs_path, "mask_predictions.pkl")
         if not os.path.isfile(mask_file):
-            masked_regions, mask_bboxes, separated_bg_masks = bg_mask(denoise_images(qs_imgs, args.filter_type), args.masking_method)
-            to_pkl([masked_regions, mask_bboxes, separated_bg_masks], path.join(args.ds_path, args.qs_path, "mask_predictions.pkl"))
+            masked_regions, mask_bboxes, separated_bg_masks, rotated_bboxes = bg_mask(denoise_images(qs_imgs, args.filter_type), args.masking_method)
+            to_pkl([masked_regions, mask_bboxes, separated_bg_masks, rotated_bboxes], path.join(args.ds_path, args.qs_path, "mask_predictions.pkl"))
         else:
-            masked_regions, mask_bboxes, separated_bg_masks = load_plain_pkl(mask_file)
+            masked_regions, mask_bboxes, separated_bg_masks, rotated_bboxes = load_plain_pkl(mask_file)
             print("Loading previous mask!")
     else:
         print("DEBUGGING")
@@ -133,22 +133,25 @@ def match_paintings(args):
     if isDebug():
         print("Extracted masks in:", time()-t0,"s")
 
+    #if type(qs_gts) == list: # Reorder both predictions and grountruths: left-right and top-bottom
+    #    bg_reord = sort_annotations_and_predictions(qs_gts, qs_text_bboxes, masked_regions=separated_bg_masks, masked_boxes=mask_bboxes, rt_masks=rotated_bboxes)
+    #    qs_gts, qs_text_bboxes, separated_bg_masks, mask_bboxes, text_masks, rotated_bboxes = bg_reord
+    #else: # Reorder only predictions: left-right and top-bottom
+    separated_bg_masks, mask_bboxes, rotated_bboxes = sort_predictions_no_gt(masked_regions=separated_bg_masks, masked_boxes=mask_bboxes, rt_masks=rotated_bboxes)
+
     if args.text_removal:
         # Crop paintings rectangularly to later extract text
-        cropped_qs_imgs = crop_painting_for_text(qs_imgs, mask_bboxes)
+        cropped_qs_imgs = crop_painting_for_text(qs_imgs, mask_bboxes, rotated_bboxes)
 
-        if args.use_boxes_annotations == 0:
-            # Compute for each painting its text segmentation
-            bboxes_file = path.join(args.ds_path, args.qs_path, "bboxes_pred.pkl")
-            #if not os.path.isfile(bboxes_file):
-            #    text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
-            #    to_pkl([text_masks, text_regions, relative_boxes], bboxes_file)
-            #else:
-            #    text_masks, text_regions, relative_boxes = load_plain_pkl(bboxes_file)
-            #    print("Loading previous textboxes!")
-            text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
-        else:
-            text_masks, text_regions, relative_boxes = process_gt_text_mask(qs_text_bboxes, mask_bboxes, cropped_qs_imgs)
+        # Compute for each painting its text segmentation
+        bboxes_file = path.join(args.ds_path, args.qs_path, "bboxes_pred.pkl")
+        #if not os.path.isfile(bboxes_file):
+        #    text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
+        #    to_pkl([text_masks, text_regions, relative_boxes], bboxes_file)
+        #else:
+        #    text_masks, text_regions, relative_boxes = load_plain_pkl(bboxes_file)
+        #    print("Loading previous textboxes!")
+        text_masks, text_regions, relative_boxes = estimate_text_mask(cropped_qs_imgs, mask_bboxes, args.text_method, qs_imgs)
 
     # Perform painting matching
     t0 = time()
@@ -156,20 +159,8 @@ def match_paintings(args):
     # Denoise images before extracting descriptors
     qs_imgs = denoise_images(qs_imgs, args.filter_type)
 
-    # Clear bg and text
-    if args.text_removal and args.masking:
-
-        if type(qs_gts) == list: # Reorder both predictions and grountruths: left-right and top-bottom
-            bg_reord = sort_annotations_and_predictions(qs_gts, qs_text_bboxes, text_regions, masked_regions=separated_bg_masks, masked_boxes=mask_bboxes, text_mask=text_masks)
-            qs_gts, qs_text_bboxes, text_regions, separated_bg_masks, mask_bboxes, text_masks = bg_reord
-        else: # Reorder only predictions: left-right and top-bottom
-            text_regions, separated_bg_masks, mask_bboxes, text_masks = sort_predictions_no_gt(text_regions, masked_regions=separated_bg_masks, masked_boxes=mask_bboxes, text_mask=text_masks)
-
-        # Remove background and text
-        qs_imgs_refined = removal_bg_text(qs_imgs, separated_bg_masks, mask_bboxes, text_regions)
-    else:
-        # Remove only text
-        qs_imgs_refined = removal_text(qs_imgs, text_regions)
+    # Remove background and text
+    qs_imgs_refined = removal_bg_text(qs_imgs, separated_bg_masks, mask_bboxes, text_regions, rotated_bboxes)
 
     # Text extractor
     painting_text = extract_text_from_imgs(cropped_qs_imgs, relative_boxes)

@@ -142,7 +142,7 @@ if __name__ == "__main__":
     # Path to DB image:
     my_path = "/home/sergio/MCV/M1/Practicas/DB"
     path0 = "qsd1_w5/00000.jpg"
-    path1 = "qsd1_w5/00000.jpg"
+    path1 = "qsd1_w5/00004.jpg"
 
     """ 
     path0 = absolutePath(path0)
@@ -259,12 +259,12 @@ if __name__ == "__main__":
                     (verticalLines[i][0][2], verticalLines[i][0][3]), (0, 255, 0), 3, cv2.LINE_AA)
             print("LINE ", i, ": ")
             print("--------------")
-            print(verticalLines[i])
+            print(verticalLines[i]) 
 
         print("Vertical lines: ", len(verticalLines))
 
     elif method == 2:
-        lines = cv2.HoughLines(dst, 1, np.pi / 180, 75, None, 0, 0)
+        lines = cv2.HoughLines(dst, 1, np.pi / 180, 100, None, 0, 0)
         #linesP = cv2.HoughLinesP(dst, 1, np.pi / 180, 50, None, 50, 10)
 
         # SOURCE size = 140 lines  -- ANotacio utilitzada per veure si anava millorant la detecció de linies
@@ -283,7 +283,7 @@ if __name__ == "__main__":
             for i in range(len(valid_lines)):
                 mean_rho, mean_theta = np.array(valid_lines[i]).mean(axis=0)
                 
-                if abs(mean_theta-theta) < math.pi/4 and abs(mean_rho-rho) < (dst.shape[0])*0.2:
+                if abs(mean_theta-theta) < math.pi/2.5 and abs(mean_rho-rho) < (dst.shape[0])*0.1:
                     valid_lines[i].append([rho, theta])
                     assigned = True
                     break
@@ -292,6 +292,32 @@ if __name__ == "__main__":
                 valid_lines.append([[rho, theta]])
 
         lines = [np.array(v).mean(axis=0).tolist() for v in valid_lines]
+        
+        lines_to_proc = []
+        lines_pending = lines
+        while len(lines_pending) > 1:
+            item = lines_pending[0]
+
+            processed = False
+            for i in range(1, len(lines_pending)):
+                r1,t1 = item
+                r2,t2 = lines_pending[i]
+
+                if abs(abs(r1)-abs(r2)) < (dst.shape[0])*0.1 and abs(t1-t2) < math.pi/2.5:
+                    lines_to_proc.append([r1, t1])
+                    processed = True
+                    del lines_pending[i]
+                    del lines_pending[0]
+                    break
+            
+            if not processed:
+                lines_to_proc.append(item)
+                del lines_pending[0]
+
+        if len(lines_pending) == 1:
+            lines_to_proc.append(lines_pending[0])
+        
+        lines = lines_to_proc
         lines_to_proc = []
         for line in lines:
             if line[1] < 0:
@@ -318,12 +344,13 @@ if __name__ == "__main__":
             y2 = int(y0 - 1000 * (a))
             tmp = np.zeros((cdstP.shape[0], cdstP.shape[1]))
             
-            tmp = cv2.line(tmp, (x1, y1), (x2, y2), 255, 1)
-            cdstP = cv2.line(cdstP, (x1, y1), (x2, y2), (255,0,0), 1)
+            tmp = cv2.line(tmp, (x1, y1), (x2, y2), 255, 3)
+            cdstP = cv2.line(cdstP, (x1, y1), (x2, y2), (255,0,0), 2)
             result_intersect[tmp!=0] += 1
 
         positions = np.where(result_intersect > 1)
 
+        print(len(positions[0]))
         # Find ...
         positions = np.array(positions)
 
@@ -347,7 +374,7 @@ if __name__ == "__main__":
         x = botr_x-botl_x
         angle = (math.atan(np.clip(y/x, 0, 1))*int(y>0))*(180/math.pi)
 
-        print(positions, angle)
+        print([topl_x, topl_y, topr_x, topr_y], angle)
 
     ## Ho comento perquè no és necessari
     ## cv2.imshow("Source", src) # Imatge original

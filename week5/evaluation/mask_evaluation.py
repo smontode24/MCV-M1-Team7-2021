@@ -203,28 +203,25 @@ def mask_metrics(mask_predictions, mask_gts):
 def text_mIoU(predictions, gts):
     return mIoU(predictions, gts)
 
-def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes, masked_regions=None, masked_boxes=None, text_mask=None):
+def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, masked_regions=None, masked_boxes=None, rt_masks=None):
     """ Sort annotations and predictions by bounding boxes close to the left-top corner """
     new_qs_gts_matching = []
     new_qs_gts_bboxes = []
-    new_pred_bboxes = []
+    new_rotated_masks = []
 
     if masked_regions != None:
         new_masked_regions = []
     if masked_boxes != None:
         new_masked_boxes = []
-    if text_mask != None:
-        new_text_mask = []
 
     for i in range(len(qs_gts_matching)):
         num_paintings = len(qs_gts_matching[i][0])
-        if num_paintings > 1 and len(pred_bboxes[i]) > 1:
+        if num_paintings > 1 and len(masked_boxes[i]) > 1:
             b1_idx = box_closer_order(masked_boxes[i])
             
             new_masked_regions.append([masked_regions[i][idx] for idx in b1_idx])
             new_masked_boxes.append([masked_boxes[i][idx] for idx in b1_idx])
-            new_text_mask.append([text_mask[i][idx] for idx in b1_idx])
-            new_pred_bboxes.append([pred_bboxes[i][idx] for idx in b1_idx])
+            new_rotated_masks.append([rt_masks[i][idx] for idx in b1_idx])
             
             # First sort real
             assignments = biggest_iou_order(new_masked_boxes[i], qs_gts_bboxes[i])
@@ -235,46 +232,41 @@ def sort_annotations_and_predictions(qs_gts_matching, qs_gts_bboxes, pred_bboxes
             new_qs_gts_matching.append(qs_gts_matching[i])
             new_masked_regions.append(masked_regions[i])
             new_masked_boxes.append(masked_boxes[i])
-            new_text_mask.append(text_mask[i])
             new_qs_gts_bboxes.append(qs_gts_bboxes[i])
-            new_pred_bboxes.append(pred_bboxes[i])
+            new_rotated_masks.append(rt_masks[i])
 
-    result = [new_qs_gts_matching, new_qs_gts_bboxes, new_pred_bboxes]
+    result = [new_qs_gts_matching, new_qs_gts_bboxes]
     if masked_regions != None:
         result.append(new_masked_regions)
         result.append(new_masked_boxes)
-        result.append(new_text_mask)
+        result.append(new_rotated_masks)
 
     return result
 
-def sort_predictions_no_gt(pred_bboxes, masked_regions=None, masked_boxes=None, text_mask=None):
+def sort_predictions_no_gt(masked_regions=None, masked_boxes=None, rt_masks=None):
     """ Sort annotations and predictions by bounding boxes close to the left-top corner """
-    new_pred_bboxes = []
-
     if masked_regions != None:
         new_masked_regions = []
     if masked_boxes != None:
         new_masked_boxes = []
-    if text_mask != None:
+    if rt_masks != None:
         new_text_mask = []
     
-    for i in range(len(pred_bboxes)):
-        if len(pred_bboxes[i]) > 1:
+    for i in range(len(masked_regions)):
+        if len(masked_regions[i]) > 1:
             # First sort real
             idxs = box_closer_order(masked_boxes[i])
 
             new_masked_regions.append([masked_regions[i][idx] for idx in idxs])
             new_masked_boxes.append([masked_boxes[i][idx] for idx in idxs])
-            new_text_mask.append([text_mask[i][idx] for idx in idxs])
-            new_pred_bboxes.append([pred_bboxes[i][idx] for idx in idxs])
+            new_text_mask.append([rt_masks[i][idx] for idx in idxs])
         else:
-            new_pred_bboxes.append(masked_boxes[i])
             if masked_regions != None:
                 new_masked_regions.append(masked_regions[i])
                 new_masked_boxes.append(masked_boxes[i])
-                new_text_mask.append(text_mask[i])
+                new_text_mask.append(rt_masks[i])
 
-    result = [new_pred_bboxes]
+    result = []
     if masked_regions != None:
         result.append(new_masked_regions)
         result.append(new_masked_boxes)

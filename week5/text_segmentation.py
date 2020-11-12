@@ -6,6 +6,7 @@ from tqdm import tqdm
 from collections import defaultdict
 from evaluation.mask_evaluation import bb_intersection_over_union, bb_int_a_over_b
 from imutils.object_detection import non_max_suppression
+import math
 
 def estimate_text_mask(cropped_imgs, painting_bboxes, method, qs_images):
     """ List of list of images. Each list contains one element for each detected painting in the image.
@@ -112,7 +113,7 @@ def process_gt_text_mask(qs_text_boxes, painting_bboxes, qs_imgs):
 
     return [cropped_text_mask, qs_text_boxes, relative_bboxes]
 
-def crop_painting_for_text(imgs, bboxes):
+def crop_painting_for_text(imgs, bboxes, bboxes_angles):
     """ Rectangular paintings for images.
             inputs: imgs = [img1, img2,...]
             bboxes: text bboxes
@@ -122,10 +123,27 @@ def crop_painting_for_text(imgs, bboxes):
     rectangular_crops = []
     img_num = 0
 
-    for bboxes_painting in bboxes:
+    for bboxes_painting, bboxes_painting_angles in zip(bboxes, bboxes_angles):
         painting_boxes = []
-        for bbox in bboxes_painting:
-            painting_boxes.append(imgs[img_num][bbox[0]:bbox[2], bbox[1]:bbox[3]])
+        for bbox_angles, bbox in zip(bboxes_painting_angles, bboxes_painting):
+            # Locate points of the documents or object which you want to transform 
+            cropped_img = imgs[img_num][bbox[0]:bbox[2], bbox[1]:bbox[3]]
+            if abs(bbox_angles[0]) > 3:
+                coords = bbox_angles[1]
+                angle = bbox_angles[0]
+                max_x, max_y = int((bbox[3]-bbox[1])/abs(math.cos(angle*(math.pi/180)))), int((bbox[2]-bbox[0])/abs(math.cos(angle*(math.pi/180))))
+                bbox_angles = [[x-bbox[1],y-bbox[0]] for x,y in coords]
+                pts1 = np.float32(bbox_angles) 
+                pts2 = np.float32([[0, 0], [max_x, 0], [0, max_y], [max_x, max_y]]) 
+
+                # Apply Perspective Transform Algorithm 
+                matrix = cv2.getPerspectiveTransform(pts1, pts2) 
+                result = cv2.warpPerspective(cropped_img, matrix, (max_x, max_y)) 
+                result = result[:,::-1,:]
+                cv2.imshow("result", result)
+                cv2.waitKey(0)
+            
+            painting_boxes.append(cropped_img)
 
         img_num += 1
         rectangular_crops.append(painting_boxes)

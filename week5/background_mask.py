@@ -23,12 +23,13 @@ def bg_mask(query_imgs, method):
     print("Obtaining masks")
     segmentation_method = get_method(method)
 
-    results_segmentation, results_bboxes, results_splitted_segmentation = [], [], []
+    results_segmentation, results_bboxes, results_splitted_segmentation, rt_res = [], [], [], []
     for img in tqdm(query_imgs):
-        segm, bbox, sep_masks = segmentation_method(img)
+        segm, bbox, sep_masks, rotated_detections = segmentation_method(img)
         results_segmentation.append(segm)
         results_bboxes.append(bbox)
         results_splitted_segmentation.append(sep_masks)
+        rt_res.append(rotated_detections)
 
     if isDebug():
         i = 0
@@ -41,7 +42,7 @@ def bg_mask(query_imgs, method):
             cv2.waitKey(0)
             i += 1
 
-    return [results_segmentation, results_bboxes, results_splitted_segmentation]
+    return [results_segmentation, results_bboxes, results_splitted_segmentation, rt_res]
 
 def apply_mask(query_imgs, masks, method): 
     """ Apply mask to each image in the query set, based on the method that was applied 
@@ -75,17 +76,26 @@ def rps(n, img):
     return cv2.imshow(n, cv2.resize(img, (512,512)))
 
 def edge_segmentation_angle(img):
+    img = cv2.medianBlur(img, 3)
     resulting_masks, bboxes, splitted_resulting_masks = edge_segmentation(img)
 
     bboxes_w_margin = []
     for bbox in bboxes:
-        x0,y0,x1,y1 = max(0, bbox[0]-10), max(0, bbox[1]-10), min(bbox[2]+10, img.shape[1]), min(bbox[3]+10, img.shape[0])
+        x0,y0,x1,y1 = max(0, bbox[0]-int(img.shape[0]*0.05)), max(0, bbox[1]-int(img.shape[1]*0.05)), min(bbox[2]+int(img.shape[0]*0.05), img.shape[0]), min(bbox[3]+int(img.shape[1]*0.05), img.shape[1])
         bboxes_w_margin.append([x0,y0,x1,y1])
 
     rotated_detections = []
     for bbox in bboxes_w_margin:
-        angle, coords = pos_angle_painting(resulting_masks[bbox[1]:bbox[3], bbox[0]:bbox[2]])
-        absolute_coords = [[[y+bbox[0], x+bbox[1]] for x,y in coord] for coord in coords]
+        init_th = 170
+        res = pos_angle_painting(resulting_masks[bbox[0]:bbox[2], bbox[1]:bbox[3]], init_th)
+        while len(res) == 0:
+            init_th = max(init_th-10, 30)
+            res = pos_angle_painting(resulting_masks[bbox[0]:bbox[2], bbox[1]:bbox[3]], init_th)
+            if init_th == 30 and len(res)==0:
+                raise Exception("No painting")
+
+        angle, coords = res
+        absolute_coords = [[y+bbox[1], x+bbox[0]] for x,y in coords]
         rotated_detections.append([angle, absolute_coords])
 
     if isDebug():
@@ -93,15 +103,19 @@ def edge_segmentation_angle(img):
             print(angle)
             img_c = img.copy()
             for x,y in coords:
-                img_c = cv2.circle(img, (x, y), 2, (255,0,0))
-            cv2.imshow("result", img_c)
+                img_c = cv2.circle(img, (x, y), 5, (255,0,0), -1)
+            cv2.imshow("result", cv2.resize(img_c,(512,512)))
             cv2.waitKey(0)
 
-    return resulting_masks, rotated_detections, splitted_resulting_masks
+    return resulting_masks, bboxes, splitted_resulting_masks, rotated_detections
 
-def pos_angle_painting(img):
+def pos_angle_painting(img, th=40):
     img = cv2.morphologyEx(img,cv2.MORPH_GRADIENT, np.ones((3,3)))
-    lines = cv2.HoughLines(img, 1, np.pi / 180, 75, None, 0, 0)
+    img = cv2.Canny(img, 20, 100, None, 3)
+    lines = cv2.HoughLines(img, 1, np.pi / 180, th, None, 0, 0)
+
+    if lines is None:
+        return []
     #linesP = cv2.HoughLinesP(dst, 1, np.pi / 180, 50, None, 50, 10)
 
     # SOURCE size = 140 lines  -- ANotacio utilitzada per veure si anava millorant la detecció de linies
@@ -119,7 +133,7 @@ def pos_angle_painting(img):
         for i in range(len(valid_lines)):
             mean_rho, mean_theta = np.array(valid_lines[i]).mean(axis=0)
             
-            if abs(mean_theta-theta) < math.pi/4 and abs(mean_rho-rho) < (img.shape[0])*0.2:
+            if abs(mean_theta-theta) < math.pi/3 and abs(mean_rho-rho) < (img.shape[0])*0.3:
                 valid_lines[i].append([rho, theta])
                 assigned = True
                 break
@@ -128,6 +142,33 @@ def pos_angle_painting(img):
             valid_lines.append([[rho, theta]])
 
     lines = [np.array(v).mean(axis=0).tolist() for v in valid_lines]
+
+    lines_to_proc = []
+    lines_pending = lines
+    while len(lines_pending) > 1:
+        item = lines_pending[0]
+
+        processed = False
+        for i in range(1, len(lines_pending)):
+            r1,t1 = item
+            r2,t2 = lines_pending[i]
+
+            if abs(abs(r1)-abs(r2)) < (img.shape[0])*0.1 and abs(t1-t2) < math.pi/2.5:
+                lines_to_proc.append([r1, t1])
+                processed = True
+                del lines_pending[i]
+                del lines_pending[0]
+                break
+        
+        if not processed:
+            lines_to_proc.append(item)
+            del lines_pending[0]
+
+    if len(lines_pending) == 1:
+        lines_to_proc.append(lines_pending[0])
+    
+    lines = lines_to_proc
+
     lines_to_proc = []
     for line in lines:
         if line[1] < 0:
@@ -136,6 +177,7 @@ def pos_angle_painting(img):
 
     lines = lines_to_proc
 
+    big_number = 5000
     result_intersect = np.zeros((img.shape[0], img.shape[1]))
     for line in lines:
         rho,theta = line
@@ -144,19 +186,24 @@ def pos_angle_painting(img):
         x0 = a * rho
         y0 = b * rho
         # x1 stores the rounded off value of (r * cos(theta) - 1000 * sin(theta))
-        x1 = int(x0 + 1000 * (-b))
+        x1 = int(x0 + big_number * (-b))
         # y1 stores the rounded off value of (r * sin(theta)+ 1000 * cos(theta))
-        y1 = int(y0 + 1000 * (a))
+        y1 = int(y0 + big_number * (a))
         # x2 stores the rounded off value of (r * cos(theta)+ 1000 * sin(theta))
-        x2 = int(x0 - 1000 * (-b))
+        x2 = int(x0 - big_number * (-b))
         # y2 stores the rounded off value of (r * sin(theta)- 1000 * cos(theta))
-        y2 = int(y0 - 1000 * (a))
+        y2 = int(y0 - big_number * (a))
         tmp = np.zeros((img.shape[0], img.shape[1]))
         
+        img = cv2.line(img, (x1, y1), (x2, y2), (255,0,0), 10)
         tmp = cv2.line(tmp, (x1, y1), (x2, y2), 255, 1)
+        
         result_intersect[tmp!=0] += 1
     
     positions = np.where(result_intersect > 1)
+
+    if len(positions[0]) < 4:
+        return []
 
     # Find ...
     positions = np.array(positions)
@@ -167,23 +214,24 @@ def pos_angle_painting(img):
 
     ss = (img.shape[0]-positions[0,:])**2+positions[1,:]**2
     first_pos = np.where(ss == ss.min())[0][0]
-    topr_x, topr_y = positions[:, first_pos]
+    botl_x, botl_y = positions[:, first_pos]
 
     ss = (img.shape[0]-positions[0,:])**2+(img.shape[1]-positions[1,:])**2
     first_pos = np.where(ss == ss.min())[0][0]
     botr_x, botr_y = positions[:, first_pos]
 
-    ss = positions[0,:]+(img.shape[1]-positions[1,:])**2
+    ss = positions[0,:]**2+(img.shape[1]-positions[1,:])**2
     first_pos = np.where(ss == ss.min())[0][0]
-    botl_x, botl_y = positions[:, first_pos]
+    topr_x, topr_y = positions[:, first_pos]
+    #botl_x, botl_y = positions[:, first_pos]
 
-    y = botl_y-botr_y
-    x = botr_x-botl_x
-    angle = (math.atan(np.clip(y/x, 0, 1))*int(y>0))*(180/math.pi)
-
+    y = botl_x-botr_x
+    x = botr_y-botl_y
+    angle = (math.atan(np.clip(y/x, -1, 1)))*(180/math.pi)
+    #cv2.imshow("lines", cv2.resize(img, (512,512)))
     return [angle, [[topr_x, topr_y], [topl_x, topl_y], [botr_x, botr_y], [botl_x, botl_y]]]
 
-def edge_segmentation(img):
+def edge_segmentation(img, low_th=25):
     """ Detect edges to create a mask that indicates where the paintings are located """
     sx, sy = np.shape(img)[:2]
     datatype = np.uint8
@@ -191,70 +239,88 @@ def edge_segmentation(img):
     kernel = np.ones((15,15), dtype=np.uint8)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
-    edges = cv2.Canny(img, 10, 80, None, 3)
-    
-    # Closing to ensure edges are continuous
-    edges = cv2.dilate(edges, kernel, iterations=1)
-    edges = cv2.erode(edges, kernel, iterations=1)
+    done = False
+    while not done:
+        edges = cv2.Canny(img, low_th, 80, None, 3)
+        
+        # Closing to ensure edges are continuous
+        edges = cv2.dilate(edges, kernel, iterations=1)
+        edges = cv2.erode(edges, kernel, iterations=1)
 
-    # Filling
-    kernel = np.ones((15,15), dtype=np.uint8)
-    mask = (ndimage.binary_fill_holes(edges)).astype(np.float64)
-    mask = cv2.erode(mask, kernel, iterations=1)
-    mask = cv2.erode(mask, kernel, iterations=1)
+        # Filling
+        kernel = np.ones((15,15), dtype=np.uint8)
+        mask = (ndimage.binary_fill_holes(edges)).astype(np.float64)
+        mask = cv2.erode(mask, kernel, iterations=1)
+        mask = cv2.erode(mask, kernel, iterations=1)
 
-    #mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((1,int(mask.shape[1]*0.05))))
+        #mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((1,int(mask.shape[1]*0.05))))
 
-    nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(mask.astype(np.uint8), connectivity=8)
-    sizes = stats[:, -1]
+        nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(mask.astype(np.uint8), connectivity=8)
+        sizes = stats[:, -1]
 
-    top_two_conn_comp_idx = sizes.argsort()
-    top_two_conn_comp_idx = top_two_conn_comp_idx[top_two_conn_comp_idx!=0]
-    idxs_tt = ((np.arange(0, min(3, len(top_two_conn_comp_idx)))+1)*(-1))[::-1]
-    top_two_conn_comp_idx = top_two_conn_comp_idx[idxs_tt][::-1]
-    
-    idxs = [idx for idx in top_two_conn_comp_idx]
+        top_two_conn_comp_idx = sizes.argsort()
+        top_two_conn_comp_idx = top_two_conn_comp_idx[top_two_conn_comp_idx!=0]
+        idxs_tt = ((np.arange(0, min(3, len(top_two_conn_comp_idx)))+1)*(-1))[::-1]
+        top_two_conn_comp_idx = top_two_conn_comp_idx[idxs_tt][::-1]
+        
+        idxs = [idx for idx in top_two_conn_comp_idx]
 
-    bc = np.zeros(output.shape)
-    bc[output == idxs[0]] = 255
-    bc = create_convex_painting(mask, bc)
-    #cv2.waitKey(0)
+        bc = np.zeros(output.shape)
+        bc[output == idxs[0]] = 255
+        bc = create_convex_painting(mask, bc)
+        #cv2.waitKey(0)
 
-    #bc = refine_mask(img, bc, get_bbox(bc))
+        #bc = refine_mask(img, bc, get_bbox(bc))
 
-    if len(idxs) > 1:
-        sbc = np.zeros(output.shape)
-        sbc[output == idxs[1]] = 255
-        sbc = create_convex_painting(mask, sbc)
-        #if sbc.astype(np.uint8).sum() > 0:
-        #    sbc = refine_mask(img, sbc, get_bbox(sbc))
+        if len(idxs) > 1:
+            sbc = np.zeros(output.shape)
+            sbc[output == idxs[1]] = 255
+            sbc = create_convex_painting(mask, sbc)
+            #if sbc.astype(np.uint8).sum() > 0:
+            #    sbc = refine_mask(img, sbc, get_bbox(sbc))
 
-        if len(idxs) > 2:
-            tbc = np.zeros(output.shape)
-            tbc[output == idxs[2]] = 255
-            tbc = create_convex_painting(mask, tbc)
-            #if tbc.astype(np.uint8).sum() > 0:
-            #    tbc = refine_mask(img, tbc, get_bbox(tbc))
-
-    bboxes = [get_bbox(bc)]
-    resulting_masks = bc
-    splitted_resulting_masks = [bc]
-    
-    # Second painting if first one does not take most part + more or less a rectangular shape + no IoU
-    if len(idxs) > 1:
-        if not takes_most_part_image(bc) and regular_shape(sbc) and check_no_iou(bc, sbc):
-            bboxes.append(get_bbox(sbc))
-            resulting_masks = np.logical_or(resulting_masks==255, sbc==255).astype(np.uint8)*255
-            splitted_resulting_masks.append(sbc)
-
-            # Third painting
             if len(idxs) > 2:
-                if regular_shape(tbc) and check_no_iou(bc, tbc) and check_no_iou(sbc, tbc):
-                    bboxes.append(get_bbox(tbc))
-                    resulting_masks = np.logical_or(resulting_masks==255, tbc==255).astype(np.uint8)*255
-                    splitted_resulting_masks.append(tbc)
+                tbc = np.zeros(output.shape)
+                tbc[output == idxs[2]] = 255
+                tbc = create_convex_painting(mask, tbc)
+                #if tbc.astype(np.uint8).sum() > 0:
+                #    tbc = refine_mask(img, tbc, get_bbox(tbc))
+
+        bboxes = [get_bbox(bc)]
+        resulting_masks = bc
+        splitted_resulting_masks = [bc]
+        
+        # Second painting if first one does not take most part + more or less a rectangular shape + no IoU
+        if len(idxs) > 1:
+            if not takes_most_part_image(bc) and regular_shape(sbc) and check_no_iou(bc, sbc):
+                bbox_sbc = get_bbox(sbc)
+                if ((bbox_sbc[2]-bbox_sbc[0])*(bbox_sbc[3]-bbox_sbc[1]))/(img.shape[0]*img.shape[1]) > 0.01:
+                    bboxes.append(bbox_sbc)
+                    resulting_masks = np.logical_or(resulting_masks==255, sbc==255).astype(np.uint8)*255
+                    splitted_resulting_masks.append(sbc)
+
+                    # Third painting
+                    if len(idxs) > 2:
+                        if regular_shape(tbc) and check_no_iou(bc, tbc) and check_no_iou(sbc, tbc):
+                            bboxes.append(get_bbox(tbc))
+                            resulting_masks = np.logical_or(resulting_masks==255, tbc==255).astype(np.uint8)*255
+                            splitted_resulting_masks.append(tbc)
+
+        cv2.imshow("bc", cv2.resize(bc,(512,512)))
+        cv2.waitKey(0)
+        done = True
+        if not rectangular_shape2(bc):
+            done = False   
+            low_th = low_th - 4
+        if low_th < 0:
+            done = True
     
     return resulting_masks, bboxes, splitted_resulting_masks
+
+def rectangular_shape2(comp):
+    contours, hierarchy = cv2.findContours((comp == 255).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    rect = cv2.minAreaRect(contours[0])
+    return (comp==255).astype(np.uint8).sum()/(rect[1][0]*rect[1][1]) > 0.9
 
 def refine_mask(img, mask, bbox):
     original_mask = mask.copy()
@@ -398,7 +464,7 @@ def get_bbox(mask):
     w_min, w_max = int(np.array(ws[:num_pixel_estimation]).mean()), int(np.array(ws[-num_pixel_estimation:]).mean())
     return [h_min, w_min, h_max, w_max]
 
-def regular_shape(mask, threshold=0.7):
+def regular_shape(mask, threshold=0.5):
     if mask.sum() == 0:
         return False
     h_min, w_min, h_max, w_max = get_bbox(mask)
@@ -407,7 +473,7 @@ def regular_shape(mask, threshold=0.7):
 
 def check_no_iou(mask1, mask2):
     bbox1, bbox2 = get_bbox(mask1), get_bbox(mask2)
-    return bb_intersection_over_union(bbox1, bbox2) < 1e-6
+    return bb_intersection_over_union(bbox1, bbox2) < 1e-2
 
 def compute_mask_gaussian_HSL(img, margin, threshold=0.00001):
     h_m, w_m = int(img.shape[0]*margin), int(img.shape[1]*margin)
@@ -459,13 +525,31 @@ def create_rectangular_painting(mask, component_mask):
         polished_mask = cv2.morphologyEx(polished_mask, cv2.MORPH_OPENss, kernel, borderValue=0)
     return polished_mask[p:polished_mask.shape[0]-p, p:polished_mask.shape[1]-p]
 
-def removal_bg_text(qs_imgs, p_bg_masks, p_bg_annotations, p_text_annotations):
+def removal_bg_text(qs_imgs, p_bg_masks, p_bg_annotations, p_text_annotations, rotated_bboxes):
     resulting_images = []
     for i in range(len(p_bg_masks)):
         painting_imgs = []
         for j in range(len(p_bg_masks[i])):
             bbox_painting = p_bg_annotations[i][j]
-            cropped_img = qs_imgs[i][bbox_painting[0]:bbox_painting[2], bbox_painting[1]:bbox_painting[3]]
+            bbox = bbox_painting
+            bbox_angles = rotated_bboxes[i][j]
+            if abs(bbox_angles[0]) > 5:
+                cropped_img = qs_imgs[i][bbox_painting[0]:bbox_painting[2], bbox_painting[1]:bbox_painting[3]]
+                coords = bbox_angles[1]
+                angle = bbox_angles[0]
+                max_x, max_y = int((bbox[3]-bbox[1])/abs(math.cos(angle*(math.pi/180)))), int((bbox[2]-bbox[0])/abs(math.cos(angle*(math.pi/180))))
+                bbox_angles = [[x-bbox[1],y-bbox[0]] for x,y in coords]
+                pts1 = np.float32(bbox_angles) 
+                pts2 = np.float32([[0, 0], [max_x, 0], [0, max_y], [max_x, max_y]]) 
+
+                # Apply Perspective Transform Algorithm 
+                matrix = cv2.getPerspectiveTransform(pts1, pts2) 
+                cropped_img = cv2.warpPerspective(cropped_img, matrix, (max_x, max_y)) 
+                cropped_img = cropped_img[:,::-1,:]
+                cv2.imshow("cropped_img", cropped_img)
+                cv2.waitKey(0)
+            else:
+                cropped_img = qs_imgs[i][bbox_painting[0]:bbox_painting[2], bbox_painting[1]:bbox_painting[3]]
             bbox_text = p_text_annotations[i][j]
             bbox_text = [bbox_text[1]-bbox_painting[0], bbox_text[0]-bbox_painting[1], bbox_text[3]-bbox_painting[0], bbox_text[2]-bbox_painting[1]]
             mask = np.zeros((cropped_img.shape[0], cropped_img.shape[1])).astype(np.uint8)
