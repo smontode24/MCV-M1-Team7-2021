@@ -17,6 +17,7 @@ import math
 from operator import itemgetter
 import glob
 import imutils
+from descriptors import HOG
 
 # Own coded comparator, in order to order nested lists in Python
 def compareDistances (dMatch):
@@ -79,12 +80,19 @@ def segmented_intersections(lines):
 
     return intersections
 
+def HOG_extractor(image_path, features):
+    image = cv2.imread(image_path)
+    image = imutils.resize(image, width=1024)
+    hog = HOG(image, None)
+    tuple = [image_path, hog]
+    features.append(tuple)
+
 def k_means(image_path):
     # following the previous guide +++ :
     # https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_ml/py_kmeans/py_kmeans_opencv/py_kmeans_opencv.html#kmeans-opencv
     # DOCUMENTATION: https://docs.opencv.org/master/d5/d38/group__core__cluster.html
 
-    image = cv2.imread(image_path)
+
     Z = image.reshape((-1,3))
     # convert to np.float32
     Z = np.float32(Z)
@@ -174,8 +182,8 @@ def do_pipeline_RGB(path, mser):
 # this program focused in one imag
 if __name__ == "__main__":
     # Path to DB image:
-    #path0 = "BBDD/*.jpg"
-    #path0 = absolutePath(path0)
+    path0 = "BBDD/*.jpg"
+    path0 = absolutePath(path0)
 
     # Path to image in DB
     path1 = "qsd1_w5/*.jpg"
@@ -187,16 +195,20 @@ if __name__ == "__main__":
     #  path3 = "qsd1_w4/00017.png"
     #  path3 = absolutePath(path3)
 
-    images = glob.glob(path1)
+    images = glob.glob(path0)
 
     i = 0
     path2 = "output_mask/"
     path2 = absolutePath(path2)
+    # Features vector
+    HOG_features = []
 
     for img in images:
-        i=i+1
-        result = k_means(img)
-        path3 = path2+str(i)+".png"
-        print(path3)
-        cv2.imwrite(path2+str(i)+".png", result)
+        HOG_extractor(img, HOG_features)
+
+        # result = k_means(img, features)
+        # path3 = path2+img+"_"+str(i)+".png"
+        # print(path3)
+        # cv2.imwrite(path3, result)
+        # i=i+1
     print("hey, stop!")
