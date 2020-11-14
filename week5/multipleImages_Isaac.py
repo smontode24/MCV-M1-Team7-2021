@@ -1,21 +1,8 @@
 import argparse
 from io_utils import *
-from os import path
-from background_mask import *
-from match_methods import *
-from text_segmentation import *
-from metrics import *
-from evaluation.mask_evaluation import *
-from evaluation.retrieval_evaluation import *
-from time import time
 from io_utils import *
 from debug_utils import *
-from scipy import ndimage
 import numpy as np
-from matplotlib import pyplot as plt
-import math
-from operator import itemgetter
-import glob
 import imutils
 from skimage.io import imread_collection
 from descriptors import HOG
@@ -107,7 +94,7 @@ def k_means(image_path):
     # clt.fit(image)
     # End of TODO
 
-    ret, label, center = cv2.kmeans(Z, 32, None, criteria, 40, cv2.KMEANS_RANDOM_CENTERS)
+    ret, label, center = cv2.kmeans(Z, 32, None, criteria, 20, cv2.KMEANS_RANDOM_CENTERS)
 
     # Now convert back into uint8, and make original image
     center = np.uint8(center)
