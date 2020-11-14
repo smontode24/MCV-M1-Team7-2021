@@ -145,7 +145,7 @@ def twod_hist(img):
     cb = img_part[:, :, 2].reshape(-1)
     vals = np.histogram2d(cr, cb, bins=(np.arange(0, 255, 5), np.arange(0, 255, 5)))[0]
     normalized_hist = vals/vals.sum()
-    vals2 = np.histogram(img_part[:, :, 0], bins=(np.arange(0, 255, 5)))[0]
+    vals2 = np.histogram(img_part[:, :, 0], bins=(np.arange(0, 255, 30)))[0]
     normalized_hist2 = vals2/vals2.sum()
     descriptor.append(np.concatenate([normalized_hist.reshape(-1), normalized_hist2.reshape(-1)]))
     
@@ -173,7 +173,7 @@ def mrhm(img, mask=None, num_blocks=16):
             else:
                 mask_block = None
 
-            block_feature = cv2.calcHist([image_block],[0,1,2], mask_block, [2,24,24], [0, 256, 0, 256, 0, 256])
+            block_feature = cv2.calcHist([image_block],[0,1,2], mask_block, [10,10,10], [0, 256, 0, 256, 0, 256])
             block_feature = cv2.normalize(block_feature, block_feature)
             features.extend(block_feature.flatten())
 

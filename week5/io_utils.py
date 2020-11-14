@@ -36,14 +36,15 @@ def load_plain_pkl(path):
     annotations = pickle.load(fd)
     return annotations
 
-def load_pkl(anno_path):
+def load_pkl(anno_path, postprocess=True):
     """ Load a pickle file """
     if os.path.exists(anno_path):
         fd = open(anno_path, "rb")
         annotations = pickle.load(fd)
-        tmp_anno = np.concatenate(annotations)
-        if len(tmp_anno.shape) == 1:
-            annotations = [[anno] for anno in annotations]
+        if postprocess:
+            tmp_anno = np.concatenate(annotations)
+            if len(tmp_anno.shape) == 1:
+                annotations = [[anno] for anno in annotations]
         return annotations
     else:
         return None  
@@ -79,7 +80,8 @@ def load_query_set(db_path):
     masks_list = mask_imgs_to_single_channel(load_images(db_path, "png"))
     labels = load_gt_annotations(os.path.join(db_path, QUERY_SET_ANN_PATH))
     text_labels = load_pkl(os.path.join(db_path, TEXT_BOXES_PATH))
-    return img_list, labels, masks_list, text_labels
+    gt_rotated_bboxes = load_pkl(os.path.join(db_path, "frames.pkl"), postprocess=False)
+    return img_list, labels, masks_list, text_labels, gt_rotated_bboxes
 
 def to_pkl(results, result_path): 
     """ Write results to pkl file in result_path """

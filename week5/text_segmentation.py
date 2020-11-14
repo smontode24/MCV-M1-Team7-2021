@@ -140,8 +140,6 @@ def crop_painting_for_text(imgs, bboxes, bboxes_angles):
                 matrix = cv2.getPerspectiveTransform(pts1, pts2) 
                 result = cv2.warpPerspective(cropped_img, matrix, (max_x, max_y)) 
                 result = result[:,::-1,:]
-                cv2.imshow("result", result)
-                cv2.waitKey(0)
             
             painting_boxes.append(cropped_img)
 

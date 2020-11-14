@@ -1,4 +1,6 @@
 import numpy as np
+import math
+from sklearn.metrics import jaccard_similarity_score
 
 #########################################
 # Code from mcv-m1-code/evaluation ######
@@ -274,6 +276,25 @@ def sort_predictions_no_gt(masked_regions=None, masked_boxes=None, rt_masks=None
 
     return result
 
+def compute_angular_error(gt_rotated_bboxes, rotated_bboxes):
+    num_paintings = 0
+    error = 0
+    for gt_rot, rot in zip(gt_rotated_bboxes, rotated_bboxes):
+        idx_painting = 0
+        for gt_pt_rot, pt_rot in zip(gt_rot, rot):
+            angle_gt = gt_pt_rot[0]
+            angle = pt_rot[0]
+
+            if angle_gt > 177:
+                angle_gt = angle_gt-180
+            if angle > 177:
+                angle = angle-180
+            error += abs(angle - angle_gt)
+            
+            num_paintings += 1
+
+    return error / num_paintings
+
 def box_closer_order(boxes):
     dist = np.array([x[0]**2+x[1]**2 for x in boxes])
     return np.argsort(dist)
@@ -320,6 +341,12 @@ def reformat_assignments_to_save(assignments, text_detections):
             k += 1
         assignments_ref.append(assignments_paintings)
     return assignments_ref
+
+def compute_mean_iou_bg(predictions, gts):
+    miou = 0
+    for prediction, gt in zip(predictions, gts):
+        miou += jaccard_similarity_score((prediction==255).astype(np.uint8).flatten(), (gt==255).astype(np.uint8).flatten())
+    return miou/len(gts)
 
 def mIoU(predictions, gts):
     """ Predictions """
