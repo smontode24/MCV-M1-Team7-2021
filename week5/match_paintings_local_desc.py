@@ -98,7 +98,7 @@ def match_paintings(args):
     
     # Load DB
     db_imgs, db_annotations, db_authors = load_db(path.join(args.ds_path, args.db_path))
-    qs_imgs, qs_gts, qs_mask_list, qs_text_bboxes = load_query_set(path.join(args.ds_path, args.qs_path))
+    qs_imgs, qs_gts, qs_mask_list, qs_text_bboxes, gt_rotated_bboxes = load_query_set(path.join(args.ds_path, args.qs_path))
 
     # Previous checks: if db_imgs = 0
     if len(db_imgs)==0:
@@ -116,7 +116,7 @@ def match_paintings(args):
     if args.masking:
         # Obtain masks for the paintings. -> Denoise on copy only because it affects text recognition a lot
         mask_file = path.join(args.ds_path, args.qs_path, "mask_predictions.pkl")
-        if not os.path.isfile(mask_file):
+        if True: #not os.path.isfile(mask_file):
             masked_regions, mask_bboxes, separated_bg_masks, rotated_bboxes = bg_mask(denoise_images(qs_imgs, args.filter_type), args.masking_method)
             to_pkl([masked_regions, mask_bboxes, separated_bg_masks, rotated_bboxes], path.join(args.ds_path, args.qs_path, "mask_predictions.pkl"))
         else:
@@ -164,11 +164,14 @@ def match_paintings(args):
 
     # Text extractor
     painting_text = extract_text_from_imgs(cropped_qs_imgs, relative_boxes)
-
+    
     # Generate query set assignments
     num_matches = painting_matchings_local_desc(qs_imgs_refined, db_imgs, text_masks, args)
     assignments = best_matches_from_num_matches(num_matches, 10, thr=args.thr_matches)
     print("Matching in", time()-t0,"s")
+
+    # Fix rotations to range 0 - 180
+    rotated_bboxes = change_range_bboxes(rotated_bboxes)
 
     # If query set annotations are available, evaluate
     # Evalute mIoU
@@ -187,6 +190,12 @@ def match_paintings(args):
         print("Recall", rec)
         print("Accuracy", acc)
         print("F1-measure", f1)
+
+        angular_error = compute_angular_error(gt_rotated_bboxes, rotated_bboxes)
+        print("Angular error:", angular_error)
+
+        miou_bg = compute_mean_iou_bg(masked_regions, qs_mask_list)
+        print("Mean IoU:", miou_bg)
 
     # Evaluate painting matching
     if type(qs_gts) == list:

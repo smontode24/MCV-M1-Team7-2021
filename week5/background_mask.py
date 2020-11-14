@@ -117,7 +117,7 @@ def pos_angle_painting(img, th=40):
     if lines is None:
         return []
     #linesP = cv2.HoughLinesP(dst, 1, np.pi / 180, 50, None, 50, 10)
-
+ 
     # SOURCE size = 140 lines  -- ANotacio utilitzada per veure si anava millorant la detecció de linies
     # mathematicalLines es un array que intenta expressar les linies d'una manera més humana
     # amb punts d'inici, final, graus, distàncies....
@@ -195,7 +195,7 @@ def pos_angle_painting(img, th=40):
         y2 = int(y0 - big_number * (a))
         tmp = np.zeros((img.shape[0], img.shape[1]))
         
-        img = cv2.line(img, (x1, y1), (x2, y2), (255,0,0), 10)
+        img = cv2.line(img, (x1, y1), (x2, y2), (255,0,0), 1)
         tmp = cv2.line(tmp, (x1, y1), (x2, y2), 255, 1)
         
         result_intersect[tmp!=0] += 1
@@ -546,8 +546,6 @@ def removal_bg_text(qs_imgs, p_bg_masks, p_bg_annotations, p_text_annotations, r
                 matrix = cv2.getPerspectiveTransform(pts1, pts2) 
                 cropped_img = cv2.warpPerspective(cropped_img, matrix, (max_x, max_y)) 
                 cropped_img = cropped_img[:,::-1,:]
-                cv2.imshow("cropped_img", cropped_img)
-                cv2.waitKey(0)
             else:
                 cropped_img = qs_imgs[i][bbox_painting[0]:bbox_painting[2], bbox_painting[1]:bbox_painting[3]]
             bbox_text = p_text_annotations[i][j]
@@ -558,6 +556,20 @@ def removal_bg_text(qs_imgs, p_bg_masks, p_bg_annotations, p_text_annotations, r
             painting_imgs.append(cropped_img)
         resulting_images.append(painting_imgs)
     return resulting_images
+
+def change_range_bboxes(rotated_bboxes):
+    res_rotated_bboxes = []
+    for i in range(len(rotated_bboxes)):
+        results_bboxes_paintings = []
+        for j in range(len(rotated_bboxes[i])):
+            item = rotated_bboxes[i][j]
+            angle = item[0]
+            if angle > 180 or angle < 0:
+                angle = angle + 180
+            item[0] = angle
+            results_bboxes_paintings.append(item)
+        res_rotated_bboxes.append(results_bboxes_paintings)
+    return res_rotated_bboxes
 
 def removal_text(qs_imgs, p_text_annotations):
     resulting_images = []
